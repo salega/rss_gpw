@@ -66,12 +66,13 @@ def send_email(body: str, body_html = None):
     msg["From"] = "kielarzu@gmail.com"
     msg["To"] = "kielarzu@gmail.com"
     msg["Subject"] = "Raport z " + date.today().strftime("%d.%m.%Y")
+    smtp_password = os.environ["SMTP_PASSWORD"]
     msg.attach(MIMEText(body, "plain", "utf-8"))
     if body_html:
         msg.attach(MIMEText(body_html, "html", "utf-8"))
     try:
         with smtplib.SMTP_SSL("smtp.gmail.com", 465) as server:
-            server.login("kielarzu@gmail.com", "lhox ukig enlx mdky")
+            server.login("kielarzu@gmail.com", smtp_password)
             server.sendmail("kielarzu@gmail.com", "kielarzu@gmail.com", msg.as_string())
     except Exception as e:
         raise RuntimeError(f"Nie udało się wysłać maila: {e}")
