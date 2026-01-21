@@ -1,13 +1,14 @@
 import feedparser
-import os
 from datetime import date, datetime, timedelta, timezone
 import time
 from zoneinfo import ZoneInfo
 from urllib.parse import urlparse
 import hashlib
+import os
 import smtplib
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
+import socket
 
 
 PL_TZ = ZoneInfo("Europe/Warsaw")
@@ -67,16 +68,39 @@ def send_email(body: str, body_html = None):
     msg["From"] = "kielarzu@gmail.com"
     msg["To"] = "kielarzu@gmail.com"
     msg["Subject"] = "Raport z " + date.today().strftime("%d.%m.%Y")
-    smtp_password = os.environ["SMTP_PASSWORD"]
     msg.attach(MIMEText(body, "plain", "utf-8"))
     if body_html:
         msg.attach(MIMEText(body_html, "html", "utf-8"))
-    try:
-        with smtplib.SMTP_SSL("smtp.gmail.com", 465) as server:
-            server.login("kielarzu@gmail.com", smtp_password)
-            server.sendmail("kielarzu@gmail.com", "kielarzu@gmail.com", msg.as_string())
-    except Exception as e:
-        raise RuntimeError(f"Nie udało się wysłać maila: {e}")
+
+    host = "smtp.gmail.com"
+    port = 465
+    username = "kielarzu@gmail.com"
+    smtp_password = os.environ["SMTP_PASSWORD"]
+
+    attempts = 10
+    base_backoff = 1.0
+    timeout_sec = 5  # ważne: zabezpiecza przed wiszącym połączeniem
+
+    last_err = None
+    for i in range(1, attempts + 1):
+        try:
+            # per-connection timeout
+            with smtplib.SMTP_SSL(host, port, timeout=timeout_sec) as server:
+                server.login(username, smtp_password)
+                server.sendmail(msg["From"], [msg["To"]], msg.as_string())
+            return
+        except (smtplib.SMTPException, socket.timeout, OSError) as e:
+            last_err = e
+            # backoff z jitterem minimalnym
+            sleep_s = min(60, base_backoff * (2 ** (i - 1)))
+            time.sleep(sleep_s)
+            continue
+        except Exception as e:
+            last_err = e
+            break
+
+    raise RuntimeError(f"Nie udało się wysłać maila po {attempts} próbach: {last_err}")
+
 
 def to_dt_utc(struct_time_obj):
     """Konwersja feedparser struct_time -> datetime (UTC)."""
