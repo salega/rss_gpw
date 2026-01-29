@@ -59,7 +59,8 @@ COMPANY_KEYWORDS = {
     "PLAYWAY": ["playway"],
     "SELVITA": ["selvita"],
     "BIOCELTIX": ["bioceltix"],
-    "ARLEN": ["arlen"]
+    "ARLEN": ["arlen"],
+    "STALEXPORT": ["stalexport"]
 }
 
 
