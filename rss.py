@@ -60,7 +60,14 @@ COMPANY_KEYWORDS = {
     "SELVITA": ["selvita"],
     "BIOCELTIX": ["bioceltix"],
     "ARLEN": ["arlen"],
-    "STALEXPORT": ["stalexport"]
+    "STALEXPORT": ["stalexport"],
+    "ERBUD": ["erbud"],
+    "PEKABEX": ["pekabex"],
+    "STALEXP": ["stalexp", "autostrad"],
+    "ARCTIC": ["arctic"],
+    "ZEPAK": ["zepak", "ze-pak", "ze pak"],
+    "GRENEVIA": ["grenevia"],
+    "MERCATOR": ["mercator"]
 }
 
 
