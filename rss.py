@@ -68,7 +68,9 @@ COMPANY_KEYWORDS = {
     "ZEPAK": ["zepak", "ze-pak", "ze pak"],
     "GRENEVIA": ["grenevia"],
     "MERCATOR": ["mercator"],
-    "BOS": ["bank bos", "bank boś", "bank ochrony środowiska", "bank-bos", "bank-ochrony-srodowiska"]
+    "BOS": ["bank bos", "bank boś", "bank ochrony środowiska", "bank-bos", "bank-ochrony-srodowiska"],
+    "UNIMOT": ["unimot"],
+    "PCCROKITA": ["rokita"]
 }
 
 
