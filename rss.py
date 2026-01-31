@@ -67,7 +67,8 @@ COMPANY_KEYWORDS = {
     "ARCTIC": ["arctic"],
     "ZEPAK": ["zepak", "ze-pak", "ze pak"],
     "GRENEVIA": ["grenevia"],
-    "MERCATOR": ["mercator"]
+    "MERCATOR": ["mercator"],
+    "BOS": ["bank bos", "bank boś", "bank ochrony środowiska", "bank-bos", "bank-ochrony-srodowiska"]
 }
 
 
