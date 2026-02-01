@@ -80,7 +80,7 @@ COMPANY_KEYWORDS = {
     "VOTUM": ["votum"],
     "ACAUTOGAZ": ["autogaz"],
     "AILLERON": ["ailleron"],
-    "TARCZYNSKI": ["tarczynski", "tarczyński],
+    "TARCZYNSKI": ["tarczynski", "tarczyński"],
     "WITTCHEN": ["wittchen"],
     "ENTER": ["enter"],
     "ONDE": ["onde"],
