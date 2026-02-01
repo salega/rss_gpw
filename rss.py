@@ -70,7 +70,21 @@ COMPANY_KEYWORDS = {
     "MERCATOR": ["mercator"],
     "BOS": ["bank bos", "bank boś", "bank ochrony środowiska", "bank-bos", "bank-ochrony-srodowiska"],
     "UNIMOT": ["unimot"],
-    "PCCROKITA": ["rokita"]
+    "PCCROKITA": ["rokita"],
+    "APATOR": ["apator"],
+    "BORYSZEW": ["boryszew"],
+    "MCR": ["mcr"],
+    "WIELTON": ["wielton"],
+    "FERRO": ["ferro"],
+    "MABION": ["mabion"],
+    "VOTUM": ["votum"],
+    "ACAUTOGAZ": ["autogaz"],
+    "AILLERON": ["ailleron"],
+    "TARCZYNSKI": ["tarczynski", "tarczyński],
+    "WITTCHEN": ["wittchen"],
+    "ENTER": ["enter"],
+    "ONDE": ["onde"],
+    "MLSYSTEM": ["mlsystem", "ml-system", "ml system"]
 }
 
 
