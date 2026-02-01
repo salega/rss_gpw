@@ -92,7 +92,7 @@ def send_email(body: str, body_html = None):
     msg = MIMEMultipart("alternative") if body_html else MIMEMultipart()
     msg["From"] = "kielarzu@gmail.com"
     msg["To"] = "kielarzu@gmail.com"
-    msg["Subject"] = "Raport z " + date.today().strftime("%d.%m.%Y")
+    msg["Subject"] = "Raport RSS z " + date.today().strftime("%d.%m.%Y")
     msg.attach(MIMEText(body, "plain", "utf-8"))
     if body_html:
         msg.attach(MIMEText(body_html, "html", "utf-8"))
