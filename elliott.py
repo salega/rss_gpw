@@ -265,11 +265,7 @@ def calculate_potential(company_abbr: str):
     return {
             "company": company_abbr,
             "has_potential": has_potential,
-            "today_higher_than_yesterday": today_higher_than_yesterday,
-            "max_value": max_value,
-            "min_value": min_value,
-            "last_value": last_value,
-            "penultimate_value": penultimate_value
+            "today_higher_than_yesterday": today_higher_than_yesterday
             }
 
 
@@ -282,17 +278,17 @@ if __name__ == "__main__":
         for company in SWIG_80:
             potential = calculate_potential(company)
             if potential["has_potential"]:
-                full_report = full_report + str(potential) + "\n"
+                full_report = full_report + str(potential) + "\n\n"
         full_report = full_report + "\nMWIG_40:\n\n"
         for company in MWIG_40:
             potential = calculate_potential(company)
             if potential["has_potential"]:
-                full_report = full_report + str(potential) + "\n"
+                full_report = full_report + str(potential) + "\n\n"
         full_report = full_report + "\nWIG_20:\n\n"
         for company in WIG_20:
             potential = calculate_potential(company)
             if potential["has_potential"]:
-                full_report = full_report + str(potential) + "\n"
+                full_report = full_report + str(potential) + "\n\n"
 
         #print(full_report)
         send_email(full_report)
