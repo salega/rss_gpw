@@ -255,19 +255,34 @@ def calculate_potential(company_abbr: str):
     penultimate_value = float(penultimate[1])
     max_date = max[0]
     min_date = min[0]
-
-    is_70_percent_higher = max_value >= min_value * 1.6
+    max_50_percent_higher_than_min = max_value >= min_value * 1.5
     max_is_before_min = max_date < min_date
-    last_20_percent_higher_than_min = last_value >= min_value * 1.1
+
+    found_after_min_10_percent_greater = False
+    seen_min = False
+    for dt, val in prices.items():
+        if not seen_min:
+            if dt == min_date:
+                seen_min = True
+            continue
+        if float(val) >= min_value * 1.1:
+            found_after_min_10_percent_greater = True
+            break
+
     today_higher_than_yesterday = last_value > penultimate_value
-    has_potential = is_70_percent_higher and max_is_before_min and last_20_percent_higher_than_min and ema21_is_rising
+    has_potential = max_50_percent_higher_than_min and max_is_before_min and found_after_min_10_percent_greater
 
     return {
             "company": company_abbr,
             "has_potential": has_potential,
-            "today_higher_than_yesterday": today_higher_than_yesterday
+            "ema21_is_rising": ema21_is_rising,
+            "today_higher_than_yesterday": today_higher_than_yesterday,
+            "max_value": max_value,
+            "min_value": min_value,
+            "last_value": last_value,
+            "penultimate_value": penultimate_value
             }
-
+    
 
 if __name__ == "__main__":
 
