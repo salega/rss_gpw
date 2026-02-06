@@ -246,39 +246,35 @@ def calculate_potential(company_abbr: str):
     prices = get_last_year_price_data(company_abbr)
     ema21_is_rising = check_if_ema21_is_rising(prices)
     max = get_max_value(prices)
-    min = get_min_value(prices)
     last = next(reversed(prices.items()))
     penultimate = list(prices.items())[-2]
     max_value = float(max[1])
-    min_value = float(min[1])
     last_value = float(last[1])
     penultimate_value = float(penultimate[1])
     max_date = max[0]
-    min_date = min[0]
-    max_50_percent_higher_than_min = max_value >= min_value * 1.5
-    max_is_before_min = max_date < min_date
 
-    found_after_min_10_percent_greater = False
-    seen_min = False
+    seen_max = False
+    local_min_value = max_value  
     for dt, val in prices.items():
-        if not seen_min:
-            if dt == min_date:
-                seen_min = True
+        if not seen_max:
+            if dt == max_date:
+                seen_max = True
             continue
-        if float(val) >= min_value * 1.1:
-            found_after_min_10_percent_greater = True
-            break
 
+        if float(val) < local_min_value:
+            local_min_value = float(val)
+
+    max_50_percent_greater_than_local_min = max_value > local_min_value * 1.5
+    today_between_10_and_50_percent_greater_than_local_min = last_value > local_min_value * 1.1 and last_value <= local_min_value * 1.5 
     today_higher_than_yesterday = last_value > penultimate_value
-    has_potential = max_50_percent_higher_than_min and max_is_before_min and found_after_min_10_percent_greater
+    has_potential = max_50_percent_greater_than_local_min and today_between_10_and_50_percent_greater_than_local_min and today_higher_than_yesterday
 
     return {
             "company": company_abbr,
             "has_potential": has_potential,
             "ema21_is_rising": ema21_is_rising,
-            "today_higher_than_yesterday": today_higher_than_yesterday,
             "max_value": max_value,
-            "min_value": min_value,
+            "local_min_value": local_min_value,
             "last_value": last_value,
             "penultimate_value": penultimate_value
             }
@@ -305,7 +301,11 @@ if __name__ == "__main__":
             if potential["has_potential"]:
                 full_report = full_report + str(potential) + "\n\n"
 
-        #print(full_report)
+        
+        full_report = full_report + "\nPamiętaj, ze fala 3 powinna:\n"
+        full_report = full_report + "\n\t* zaczynać się po 38-70% fali 2, która jest falą ABC\n"
+        full_report = full_report + "\n\t* większy wolumen\n"
+        full_report = full_report + "\n\t* bardziej dynamiczny start\n"
         send_email(full_report)
         sys.exit(0)
 
