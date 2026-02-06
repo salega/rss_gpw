@@ -273,10 +273,10 @@ def calculate_potential(company_abbr: str):
             "company": company_abbr,
             "has_potential": has_potential,
             "ema21_is_rising": ema21_is_rising,
-            "max_value": max_value,
-            "local_min_value": local_min_value,
-            "last_value": last_value,
-            "penultimate_value": penultimate_value
+            "max_value": f"{max_value:.2f}", 
+            "local_min_value": f"{local_min_value:.2f}",
+            "last_value": f"{last_value:.2f}",
+            "penultimate_value": f"{penultimate_value:.2f}"
             }
     
 
