@@ -84,7 +84,9 @@ COMPANY_KEYWORDS = {
     "WITTCHEN": ["wittchen"],
     "ENTER": ["enter"],
     "ONDE": ["onde"],
-    "MLSYSTEM": ["mlsystem", "ml-system", "ml system"]
+    "MLSYSTEM": ["mlsystem", "ml-system", "ml system"],
+    "CYFROWYPOLSAT": ["polsat"],
+    "CELON": ["celon"],
 }
 
 
