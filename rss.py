@@ -24,6 +24,10 @@ FEEDS = [
 
 
 COMPANY_KEYWORDS = {
+    "INSIDER_TRADING": ["transakcj", "insider", "powiadomienie", "obowiązki zarządcze",
+                        "obowiazki zarzadcze", "osoba", "19 mar", "19-mar", "mar 19", "mar-19",
+                        "nabycie", "zbycie", "rozporządzenie", "rozporzadzenie"
+                        ],
     "11BIT": ["11bit", "11"],
     "ACAUTOGAZ": ["autogaz"],
     "AILLERON": ["ailleron"],
