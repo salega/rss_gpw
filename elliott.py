@@ -298,17 +298,17 @@ if __name__ == "__main__":
         for company in SWIG_80:
             potential = calculate_potential(company)
             if potential["has_potential"]:
-                full_report = full_report + str(potential) + "\n"
+                full_report = full_report + str(potential) + "\n\n"
         full_report = full_report + "\nMWIG_40:\n\n"
         for company in MWIG_40:
             potential = calculate_potential(company)
             if potential["has_potential"]:
-                full_report = full_report + str(potential) + "\n"
+                full_report = full_report + str(potential) + "\n\n"
         full_report = full_report + "\nWIG_20:\n\n"
         for company in WIG_20:
             potential = calculate_potential(company)
             if potential["has_potential"]:
-                full_report = full_report + str(potential) + "\n"
+                full_report = full_report + str(potential) + "\n\n"
 
         
         full_report = full_report + "\nPamiętaj, ze fala 3 powinna:\n"
