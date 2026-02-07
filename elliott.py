@@ -227,24 +227,29 @@ def get_min_value(prices):
     return min(prices.items(), key=itemgetter(1))
 
 
-def check_if_ema21_is_rising(data: Dict[pd.Timestamp, float]) -> Tuple[pd.Series, bool]:
+def check_if_price_above_emas(data: Dict[pd.Timestamp, float]) -> Tuple[Optional[bool], Optional[bool], Optional[bool]]:
     if not data:
         raise ValueError("Pusty zbiór danych")
 
     s = pd.Series(data).sort_index()
-    ema21 = s.ewm(span=21, adjust=False, min_periods=21).mean()
+    last_price = s.iloc[-1]
 
-    if ema21.notna().sum() < 2:
-        # Za mało punktów z wyliczoną EMA, żeby ocenić kierunek
-        return ema21, False
+    def ema_above(span: int) -> Optional[bool]:
+        ema = s.ewm(span=span, adjust=False, min_periods=span).mean()
+        if pd.isna(ema.iloc[-1]):
+            return None
+        return bool(last_price > ema.iloc[-1])
 
-    is_rising = bool(ema21.iloc[-1] > ema21.iloc[-2] and ema21.iloc[-2] > ema21.iloc[-3] and ema21.iloc[-3] > ema21.iloc[-4])
-    return is_rising
+    return (
+        ema_above(8),
+        ema_above(21),
+        ema_above(30),
+    )
 
 
 def calculate_potential(company_abbr: str):
     prices = get_last_year_price_data(company_abbr)
-    ema21_is_rising = check_if_ema21_is_rising(prices)
+    price_above_emas = check_if_price_above_emas(prices)
     max = get_max_value(prices)
     last = next(reversed(prices.items()))
     penultimate = list(prices.items())[-2]
@@ -272,7 +277,9 @@ def calculate_potential(company_abbr: str):
     return {
             "company": company_abbr,
             "has_potential": has_potential,
-            "ema21_is_rising": ema21_is_rising,
+            "above_ema_8": price_above_emas[0],
+            "above_ema_21": price_above_emas[1],
+            "above_ema_30": price_above_emas[2],
             "max_value": f"{max_value:.2f}", 
             "local_min_value": f"{local_min_value:.2f}",
             "last_value": f"{last_value:.2f}",
@@ -281,25 +288,25 @@ def calculate_potential(company_abbr: str):
     
 
 if __name__ == "__main__":
-
-    company_abbr = "ALL" #input("\nPodaj skrót spółki lub napisz 'ALL': ").strip().upper()
     
-    if company_abbr == "ALL":
+    company_abbr = "" # input("\nPodaj skrót spółki lub puste: ").strip().upper()
+    
+    if company_abbr == "":
         full_report = "SWIG_80:\n\n"
         for company in SWIG_80:
             potential = calculate_potential(company)
             if potential["has_potential"]:
-                full_report = full_report + str(potential) + "\n\n"
+                full_report = full_report + str(potential) + "\n"
         full_report = full_report + "\nMWIG_40:\n\n"
         for company in MWIG_40:
             potential = calculate_potential(company)
             if potential["has_potential"]:
-                full_report = full_report + str(potential) + "\n\n"
+                full_report = full_report + str(potential) + "\n"
         full_report = full_report + "\nWIG_20:\n\n"
         for company in WIG_20:
             potential = calculate_potential(company)
             if potential["has_potential"]:
-                full_report = full_report + str(potential) + "\n\n"
+                full_report = full_report + str(potential) + "\n"
 
         
         full_report = full_report + "\nPamiętaj, ze fala 3 powinna:\n"
