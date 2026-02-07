@@ -246,7 +246,7 @@ def main():
 
         if any(tok in t for tok in ALL_TOKENS):
             d_pl = d_utc.astimezone(PL_TZ)
-            report = report + (link) + "\n"
+            report = report + (link) + "\n\n"
 
     print(report)
     send_email(report)
