@@ -25,6 +25,8 @@ FEEDS = [
 
 COMPANY_KEYWORDS = {
     "CCC": ["ccc"],
+    "BUDIMEX": ["budimex"],
+    "XTB": ["xtb"],
     "KGHM": ["kghm"],
     "CDPROJEKT": ["cdprojekt", "cd"],
     "PKNORLEN": ["pkn", "orlen"],
@@ -87,7 +89,13 @@ COMPANY_KEYWORDS = {
     "MLSYSTEM": ["mlsystem", "ml-system", "ml system"],
     "CYFROWYPOLSAT": ["polsat"],
     "CELON": ["celon"],
-    "ASSECO": ["asseco"]
+    "ASSECO": ["asseco"],
+    "CREOTECH": ["creotech"],
+    "QUERCUS": ["quercus"],
+    "SNTVERSE": ["synthaverse", "sntverse"],
+    "MENNICA": ["mennica"],
+    "TORPOL": ["torpol"],
+    "MURAPOL": ["murapol"]
 }
 
 
