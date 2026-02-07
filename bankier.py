@@ -479,7 +479,8 @@ def save_report_to_file(company: str, report: str, error=False):
     error_prefix = "ERROR_" if error else ""
     file_name = f"{error_prefix}{company}_{date}.md"
 
-    with open(file_name, "w", encoding="utf-8") as f:
+    file_path = os.path.join("reports", file_name)
+    with open(file_path, "w", encoding="utf-8") as f:
         f.write(report)
     print(report)
 
