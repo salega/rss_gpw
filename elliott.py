@@ -1,12 +1,11 @@
 import sys
-from datetime import datetime, timedelta, date
 import yfinance as yf
 from operator import itemgetter
 import pandas as pd
 import warnings
-from typing import Dict, Tuple
+from typing import Dict, Tuple, Optional
 
-from datetime import date, datetime, timedelta, timezone
+from datetime import date, datetime, timedelta
 import time
 import os
 import smtplib
@@ -288,9 +287,12 @@ def calculate_potential(company_abbr: str):
     
 
 if __name__ == "__main__":
-    
-    company_abbr = "" # input("\nPodaj skrót spółki lub puste: ").strip().upper()
-    
+
+    if os.environ["RUN_FOR_ALL_COMPANIES"] == "true":
+        company_abbr = ""
+    else:
+        company_abbr = input("\nPodaj skrót spółki lub puste: ").strip().upper()
+
     if company_abbr == "":
         full_report = "SWIG_80:\n\n"
         for company in SWIG_80:
@@ -313,7 +315,9 @@ if __name__ == "__main__":
         full_report = full_report + "\n\t* zaczynać się po 38-70% fali 2, która jest falą ABC\n"
         full_report = full_report + "\n\t* większy wolumen\n"
         full_report = full_report + "\n\t* bardziej dynamiczny start\n"
-        send_email(full_report)
+
+        if os.environ["SEND_EMAIL"] == "true":
+            send_email(full_report)
         sys.exit(0)
 
     if len(company_abbr) == 0:
