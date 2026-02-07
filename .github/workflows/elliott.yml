@@ -21,4 +21,6 @@ jobs:
       - name: Run script
         env:
           SMTP_PASSWORD: ${{ secrets.SMTP_PASSWORD }}
+          SEND_EMAIL: ${{ secrets.SEND_EMAIL }}
+          RUN_FOR_ALL_COMPANIES: ${{ secrets.RUN_FOR_ALL_COMPANIES }}
         run: python elliott.py
