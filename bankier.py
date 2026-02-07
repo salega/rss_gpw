@@ -4,7 +4,7 @@
 # 3. MACD
 # 4. RSI i Oscylator stochastyczny
 # 5. Analiza fundamentalna: dla danej spółki wyszukaj linki do newsów + linki do ESPI z ostatnich X dni.
-
+import os
 
 import requests
 import time
@@ -124,7 +124,7 @@ WIG_SECTOR_BY_TICKER = {
 def ask_perplexity_api(company: str, question: str, company_document_links = []):
     endpoint = "https://api.perplexity.ai/chat/completions"
     headers = {
-        "Authorization": "to be committed",
+        "Authorization": os.environ["PERPLEXITY_TOKEN"],
         "Content-Type": "application/json"
     }
 
