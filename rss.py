@@ -87,6 +87,7 @@ COMPANY_KEYWORDS = {
     "MLSYSTEM": ["mlsystem", "ml-system", "ml system"],
     "CYFROWYPOLSAT": ["polsat"],
     "CELON": ["celon"],
+    "ASSECO": ["asseco"]
 }
 
 
