@@ -160,20 +160,6 @@ def window_prev_day_6am_pl():
     end_pl = now_pl
     return start_pl.astimezone(timezone.utc), end_pl.astimezone(timezone.utc), start_pl, end_pl
 
-def source_tag(url, feed_title=None):
-    """Zwróć krótki tag źródła na podstawie domeny lub tytułu kanału."""
-    netloc = urlparse(url).netloc.lower()
-    if "bankier.pl" in netloc:
-        return "Bankier"
-    if "gpw.pl" in netloc:
-        return "GPW"
-    if "money.pl" in netloc:
-        return "Money.pl"
-    if "pb.pl" in netloc:
-        return "PB"
-    # fallback na tytuł lub domenę
-    return (feed_title or netloc).split()[0]
-
 def guid(title, link):
     """Hash do deduplikacji wpisów."""
     base = (title or "") + "|" + (link or "")
@@ -181,20 +167,19 @@ def guid(title, link):
 
 def main():
     start_utc, end_utc, start_pl, end_pl = window_prev_day_6am_pl()
-    report = f"Okno: od [{start_pl:%Y-%m-%d %H:%M} PL] do [{end_pl:%Y-%m-%d %H:%M} PL]\n\n"
+    report = f"<b><span style='font-size: 1.25em;'>Newsy dla:\n📅{start_pl:%Y-%m-%d %H:%M} -\n📅{end_pl:%Y-%m-%d %H:%M}</span></b>\n\n"
 
     all_items = []
     seen = set()
-    per_source_counts = {}
+    errors = ""
 
     for rss_url in FEEDS:
         try:
             feed = feedparser.parse(rss_url)
         except Exception as ex:
-            report = report + f"[WARN] Nie udało się pobrać: {rss_url} -> {ex}"
+            errors = errors + f"[WARN] Nie udało się pobrać: {rss_url} -> {ex}"
             continue
 
-        src = source_tag(rss_url, feed.feed.get("title"))
         count_selected = 0
 
         for e in feed.entries:
@@ -210,50 +195,38 @@ def main():
 
             seen.add(g)
             count_selected += 1
-            all_items.append((d_utc, src, title, link))
-
-        per_source_counts[src] = per_source_counts.get(src, 0) + count_selected
+            all_items.append((d_utc, title, link))
 
     # sort globalnie malejąco po czasie
     all_items.sort(key=lambda x: x[0], reverse=True)
 
-    # wypisz podsumowanie per źródło
-    # if per_source_counts:
-    #     report = report + ("Podsumowanie per źródło (liczba wpisów w oknie):")
-    #     for src, cnt in sorted(per_source_counts.items(), key=lambda x: x[0]):
-    #         report = report + (f"- {src}: {cnt}")
-    #     report = report + ("")
+    all_tokens = {token.lower() for tokens in COMPANY_KEYWORDS.values() for token in tokens}
 
-    # wypisz szczegóły
+    for d_utc, title, link in all_items:
+        t = (title or "").lower()
+        if any(tok in t for tok in all_tokens):
+            d_pl = d_utc.astimezone(PL_TZ)
+            link = f'[<a href="{link}">link</a>]\n'
+            report = report + f'<span style="font-size: 0.8em;">{d_pl:⏰%H:%M} - <b>{title}</b> {link}</span>' + "\n"
+
     if not all_items:
-        report = report + ("Brak wpisów w zadanym oknie czasu.") 
-        return
+        report = report + "Brak wpisów w zadanym oknie czasu."
 
-    
-    ALL_TOKENS = {tok.lower() for toks in COMPANY_KEYWORDS.values() for tok in toks}
-
-    report = report + ("Newsy:\n\n")
-    for d_utc, src, title, link in all_items:
-        t = (title or "").lower()
-        l = (link or "").lower()
-
-        if any(tok in t for tok in ALL_TOKENS):
-            d_pl = d_utc.astimezone(PL_TZ)
-            report = report + (f"[{d_pl:%Y-%m-%d %H:%M} PL] [{src}] {title}") + "\n"
-
-            report = report + ("-" * 90) + "\n"
-
-    report = report + ("\n\nLinki:\n") 
-    for d_utc, src, title, link in all_items:
-        t = (title or "").lower()
-        l = (link or "").lower()
-
-        if any(tok in t for tok in ALL_TOKENS):
-            d_pl = d_utc.astimezone(PL_TZ)
-            report = report + (link) + "\n\n"
+    if errors:
+        report = report + "\n" + errors
 
     print(report)
-    send_email(report)
+    send_email(
+        report,
+        body_html=f"""\
+        <html>
+          <body>
+            <pre style="font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 
+            'Courier New', monospace;">{report}</pre>
+          </body>
+        </html>
+        """)
+
 
 if __name__ == "__main__":
     main()
