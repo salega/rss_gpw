@@ -271,7 +271,9 @@ def calculate_potential(company_abbr: str):
     max_50_percent_greater_than_local_min = max_value > local_min_value * 1.5
     today_between_10_and_50_percent_greater_than_local_min = last_value > local_min_value * 1.1 and last_value <= local_min_value * 1.5 
     today_higher_than_yesterday = last_value > penultimate_value
-    has_potential = max_50_percent_greater_than_local_min and today_between_10_and_50_percent_greater_than_local_min and today_higher_than_yesterday
+    is_at_least_one_ema_above = any(price_above_emas)
+    has_potential = (max_50_percent_greater_than_local_min and is_at_least_one_ema_above and
+                     today_between_10_and_50_percent_greater_than_local_min and today_higher_than_yesterday)
 
     return {
             "company": company_abbr,
@@ -310,7 +312,6 @@ if __name__ == "__main__":
             if potential["has_potential"]:
                 full_report = full_report + str(potential) + "\n\n"
 
-        
         full_report = full_report + "\nPamiętaj, ze fala 3 powinna:\n"
         full_report = full_report + "\n\t* zaczynać się po 38-70% fali 2, która jest falą ABC\n"
         full_report = full_report + "\n\t* większy wolumen\n"
@@ -318,6 +319,8 @@ if __name__ == "__main__":
 
         if os.environ["SEND_EMAIL"] == "true":
             send_email(full_report)
+
+        print(full_report)
         sys.exit(0)
 
     if len(company_abbr) == 0:
