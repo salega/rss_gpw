@@ -2,7 +2,6 @@ import feedparser
 from datetime import date, datetime, timedelta, timezone
 import time
 from zoneinfo import ZoneInfo
-from urllib.parse import urlparse
 import hashlib
 import os
 import smtplib

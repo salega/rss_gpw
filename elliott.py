@@ -268,11 +268,11 @@ def calculate_potential(company_abbr: str):
         if float(val) < local_min_value:
             local_min_value = float(val)
 
-    max_50_percent_greater_than_local_min = max_value > local_min_value * 1.5
-    today_between_10_and_50_percent_greater_than_local_min = last_value > local_min_value * 1.1 and last_value <= local_min_value * 1.5 
+    max_40_percent_greater_than_local_min = max_value > local_min_value * 1.4
+    today_between_10_and_50_percent_greater_than_local_min = last_value > local_min_value * 1.1 and last_value <= local_min_value * 1.5
     today_higher_than_yesterday = last_value > penultimate_value
     is_at_least_one_ema_above = any(price_above_emas)
-    has_potential = (max_50_percent_greater_than_local_min and is_at_least_one_ema_above and
+    has_potential = (max_40_percent_greater_than_local_min and is_at_least_one_ema_above and
                      today_between_10_and_50_percent_greater_than_local_min and today_higher_than_yesterday)
 
     return {
@@ -286,7 +286,35 @@ def calculate_potential(company_abbr: str):
             "last_value": f"{last_value:.2f}",
             "penultimate_value": f"{penultimate_value:.2f}"
             }
-    
+
+
+def format_potential(potential):
+    stooq_url = f'https://stooq.pl/q/?s={potential["company"]}'
+    ema_8_icon = "✅️" if potential["above_ema_8"] else "❌"
+    ema_21_icon = "✅️" if potential["above_ema_21"] else "❌"
+    ema_30_icon = "✅️" if potential["above_ema_30"] else "❌"
+
+    formatted_entry = f"""\
+<div style="font-size: 0.9em; margin-top: 20px; padding: 0; line-height: 1.5;">
+  <table cellpadding="0" cellspacing="0" style="border-collapse: collapse; margin: 0; padding: 0;">
+    <tr style="margin: 0; padding: 0;">
+      <td style="padding: 0 14px 0 0;">🏭<b>{potential["company"]}</b></td>
+      <td style="padding: 0 14px 0 0;"><span style="font-size: 0.9em;">[<a href="{stooq_url}">stooq</a>]</span></td>
+    </tr>
+    <tr style="margin: 0; padding: 0;">
+      <td style="padding: 0 14px 0 0;">📈EMA8: {ema_8_icon}</td>
+      <td style="padding: 0 14px 0 0;">📈EMA21: {ema_21_icon}</td>
+      <td style="padding: 0;">📈EMA30: {ema_30_icon}</td>
+    </tr>
+    <tr style="margin: 0; padding: 0;">
+      <td style="padding: 0 14px 0 0;">⬆️{potential["max_value"]}</td>
+      <td style="padding: 0 14px 0 0;">⬇️{potential["local_min_value"]}</td>
+      <td style="padding: 0;">🆕{potential["penultimate_value"]} → {potential["last_value"]}</td>
+    </tr>
+  </table>
+</div>"""
+    return formatted_entry
+
 
 if __name__ == "__main__":
 
@@ -296,31 +324,46 @@ if __name__ == "__main__":
         company_abbr = input("\nPodaj skrót spółki lub puste: ").strip().upper()
 
     if company_abbr == "":
-        full_report = "SWIG_80:\n\n"
+        report = '<span style="font-size: 1.6em;"><b>🏪SWIG80:</b></span><br>━━━━━━━━━━━━━━━━━━━━━━━━━━━━'
         for company in SWIG_80:
             potential = calculate_potential(company)
             if potential["has_potential"]:
-                full_report = full_report + str(potential) + "\n\n"
-        full_report = full_report + "\nMWIG_40:\n\n"
+                potential = format_potential(potential)
+                report = report + potential #+ "━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+        report = report + '<br><br><span style="font-size: 1.6em;"><b>🏬MWIG40:</b></span><br>━━━━━━━━━━━━━━━━━━━━━━━━━━━━'
         for company in MWIG_40:
             potential = calculate_potential(company)
             if potential["has_potential"]:
-                full_report = full_report + str(potential) + "\n\n"
-        full_report = full_report + "\nWIG_20:\n\n"
+                potential = format_potential(potential)
+                report = report + potential# + "━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+        report = report + '<br><br><span style="font-size: 1.6em;"><b>🏢WIG20:</b></span><br>━━━━━━━━━━━━━━━━━━━━━━━━━━━━'
         for company in WIG_20:
             potential = calculate_potential(company)
             if potential["has_potential"]:
-                full_report = full_report + str(potential) + "\n\n"
+                potential = format_potential(potential)
+                report = report + potential #+ "━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
 
-        full_report = full_report + "\nPamiętaj, ze fala 3 powinna:\n"
-        full_report = full_report + "\n\t* zaczynać się po 38-70% fali 2, która jest falą ABC\n"
-        full_report = full_report + "\n\t* większy wolumen\n"
-        full_report = full_report + "\n\t* bardziej dynamiczny start\n"
+        report = report + """
+        <br><br>
+        <div style="font-size: 0.95em; margin-top: 10px; line-height: 1.4;">
+          <b>Pamiętaj, że fala 3 powinna:</b>
+          <ul style="margin: 6px 0 0 18px; padding: 0;">
+            <li>zaczynać się po 38–70% fali 2 (która jest falą ABC)</li>
+            <li>mieć większy wolumen</li>
+            <li>mieć bardziej dynamiczny start</li>
+          </ul>
+        </div>
+        """
 
         if os.environ["SEND_EMAIL"] == "true":
-            send_email(full_report)
+            send_email(report, body_html=f"""\
+            <html>
+              <body style="font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 
+              'Courier New', monospace;">{report}</body>
+            </html>
+            """)
 
-        print(full_report)
+        print(report)
         sys.exit(0)
 
     if len(company_abbr) == 0:
