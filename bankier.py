@@ -46,8 +46,6 @@ WIG_SECTOR_BY_TICKER = {
     "PBX": "WIG-BUDOW",
     "ERB": "WIG-BUDOW",
     "OND": "WIG-BUDOW",
-    "PBX": "WIG-BUDOW",
-    "TOR": "WIG-BUDOW",
     "FRO": "WIG-BUDOW",
     "MCR": "WIG-BUDOW",
 
@@ -91,9 +89,6 @@ WIG_SECTOR_BY_TICKER = {
     # media
     "WPL": "WIG-MEDIA",
     "CPS": "WIG-MEDIA",
-
-    # odzież
-    "WTN": "WIG-ODZIEZ",
 
     # leki
     "MAB": "WIG-LEKI",
