@@ -509,7 +509,7 @@ if __name__ == "__main__":
     if company != '-' and len(company) > 0:
         company_abbr = input("\nPodaj skrót spółki: ").strip().upper()
         sector_data = sector_2_years_data(company_abbr)
-        stock_exchange = input("\nPodaj nazwę giełdy (GPW lub NYSE): ").strip().upper()
+        stock_exchange = "GPW" #input("\nPodaj nazwę giełdy (GPW lub NYSE): ").strip().upper()
         if stock_exchange not in ("GPW", "NYSE"):
             print("\nNiepoprawna giełda: " + stock_exchange)
             sys.exit()
