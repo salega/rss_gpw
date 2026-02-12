@@ -27,7 +27,7 @@ COMPANY_KEYWORDS = {
                         "obowiazki zarzadcze", "osoba", "19 mar", "19-mar", "mar 19", "mar-19",
                         "nabycie", "zbycie", "rozporządzenie", "rozporzadzenie"
                         ],
-    "11BIT": ["11bit", "11"],
+    "11BIT": ["11bit", "11-bit", "11 bit"],
     "ACAUTOGAZ": ["autogaz"],
     "AILLERON": ["ailleron"],
     "ALLEGRO": ["allegro"],
