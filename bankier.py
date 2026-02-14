@@ -388,7 +388,8 @@ def prepare_request(has_reports: bool):
     return (
     "\n\nMoje zapytanie: " + find_reports_query + ", a także przeanalizuj załączone dane historyczne ceny akcji, notowania indeksu sektorowego,"
     " newsy dotyczące tej spółki i oceń szanse na wzrost lub spadek wartości akcji dla swing tradera."
-    " Dodatkowo dodaj bardzo krótką analizę sektorową (1 zdaniem) - jeśli załączono notowania indeksu sektorowego, do którego należy ta spółka, to oprzyj się na tym."
+    " Dodatkowo dodaj bardzo krótką analizę sektorową (1 zdaniem) - jeśli załączono notowania indeksu sektorowego, do którego należy ta spółka, to oprzyj się na tym i sprawdź jak spółka "
+    " radzi sobie w ostatnim czasie i ostatnim roku w stosunku do sektora oraz jak bardzo ich notowania są skorelowane z sektorem."
     " Sprawdź, co może wpływać na notowania spółki (np. sprawdź ceny miedzi jeśli analizowany jest KGHM, państwowe akcje profilaktyczne jeśli analizowana jest Diagnostyka itd.) "
     " oraz czy jakieś ostatnie wydarzenia mogą mieć wpływ na spółkę lub czy notowania spółki zależą od jakiegoś zdarzenia, które za niedługo może"
     " się stać np. nowy kontrakt, nowy produkt lub nowe przepisy. Napisz od czego głównie zależą zyski tej spółki i jak te czynniki obecnie"
