@@ -50,7 +50,7 @@ WIG_SECTOR_BY_TICKER = {
     "MCR": "WIG-BUDOW",
 
     # odzież / tekstylia
-    "CCC": "WIG-ODZIEZ",
+    "MDV": "WIG-ODZIEZ",
     "LBW": "WIG-ODZIEZ",
     "PCO": "WIG-ODZIEZ",
     "ARL": "WIG-ODZIEZ",

@@ -44,7 +44,7 @@ COMPANY_KEYWORDS = {
     "BOS": ["bank bos", "bank boś", "bank ochrony środowiska", "bank-bos", "bank-ochrony-srodowiska"],
     "BUDIMEX": ["budimex"],
     "BUMECH": ["bumech"],
-    "CCC": ["ccc"],
+    "MDV": ["ccc", "modivo"],
     "CDPROJEKT": ["cdprojekt", "cd"],
     "CELON": ["celon"],
     "CIGAMES": ["ci games"], 
