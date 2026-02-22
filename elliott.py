@@ -184,7 +184,7 @@ WIG_20 = [
 "ALE",
 "ALR",
 "BDX",
-"MDV",
+"CCC",
 "CDR",
 "DNP",
 "KGH",
