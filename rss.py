@@ -154,11 +154,11 @@ def main():
             report = report + render_item(f"{d_pl:%H:%M}", title, link)
 
     if not all_items:
-        report = report + "Brak wpisów w zadanym oknie czasu."
+        report = report + "Brak wpisów RSS w zadanym oknie czasu."
 
     espi_links = collect_espi_links_for_all_companies(dict(islice(COMPANY_KEYWORDS.items(), 1, None)))
     if espi_links:
-        report = report + '<br><br>━━━━━━━━━━━━━━━━━━━━━━━━━━━━<br><br>'
+        report = report + '━━━━━━━━━━━━━━━━━━━━━━━━━━━━<br><br>'
         for espi_link, title, time_str, company in espi_links:
             report = report + render_item(time_str, f"{company}: {title}", espi_link)
 
