@@ -295,7 +295,7 @@ def format_potential(potential):
     ema_30_icon = "✅️" if potential["above_ema_30"] else "❌"
 
     formatted_entry = f"""\
-<div style="font-size: 0.9em; margin-top: 20px; padding: 0; line-height: 1.5;">
+<div style="font-size: 0.88em; margin-top: 20px; padding: 0; line-height: 1.5;">
   <table cellpadding="0" cellspacing="0" style="border-collapse: collapse; margin: 0; padding: 0;">
     <tr style="margin: 0; padding: 0;">
       <td style="padding: 0 14px 0 0;">🏭<b>{potential["company"]}</b></td>

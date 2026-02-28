@@ -75,6 +75,7 @@ WIG_SECTOR_BY_TICKER = {
     "PGE": "WIG-ENERG",
     "MLS": "WIG-ENERG",
     "ZEP": "WIG-ENERG",
+    "PEP": "WIG-ENERG",
 
     # spożywka / handel FMCG / restauracje
     "DNP": "WIG-SPOZYW",
