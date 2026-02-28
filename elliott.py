@@ -13,6 +13,10 @@ from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 import socket
 
+from data import SWIG_80, MWIG_40, WIG_20
+
+warnings.simplefilter(action='ignore', category=FutureWarning)
+
 
 def send_email(body: str, body_html = None):
     msg = MIMEMultipart("alternative") if body_html else MIMEMultipart()
@@ -26,7 +30,7 @@ def send_email(body: str, body_html = None):
     host = "smtp.gmail.com"
     port = 465
     username = "kielarzu@gmail.com"
-    smtp_password = os.environ["SMTP_PASSWORD"] 
+    smtp_password = os.environ["SMTP_PASSWORD"]
 
     attempts = 10
     base_backoff = 1.0
@@ -51,157 +55,6 @@ def send_email(body: str, body_html = None):
             break
 
     raise RuntimeError(f"Nie udało się wysłać maila po {attempts} próbach: {last_err}")
-
-
-warnings.simplefilter(action='ignore', category=FutureWarning)
-SWIG_80 = [
-"1AT",
-"ABS",
-"ACG",
-"AGO",
-"ALL",
-"AMB",
-"AMC",
-"APT",
-"ARH",
-"ARL",
-"AST",
-"ATC",
-"BCX",
-"BIO",
-"BLO",
-"BMC",
-"BOS",
-"BRS",
-"CIG",
-"CLC",
-"CLN",
-"CMP",
-"COG",
-"CRI",
-"CRJ",
-"CTX",
-"DAD",
-"DAT",
-"DCR",
-"ECH",
-"ELT",
-"ENT",
-"ERB",
-"FRO",
-"FTE",
-"GEA",
-"GRX",
-"KGN",
-"LWB",
-"MAB",
-"MCI",
-"MCR",
-"MDG",
-"MLG",
-"MLS",
-"MNC",
-"MRC",
-"MSZ",
-"MUR",
-"OND",
-"OPN",
-"PBX",
-"PCR",
-"PLW",
-"PXM",
-"QRS",
-"RVU",
-"SCP",
-"SEL",
-"SGN",
-"SHO",
-"SKA",
-"SLV",
-"SNK",
-"STP",
-"STX",
-"SVE",
-"TAR",
-"TOA",
-"TOR",
-"UNI",
-"UNT",
-"VGO",
-"VOT",
-"VRG",
-"WLT",
-"WTN",
-"WWL",
-"XTP",
-"ZEP",
-]
-
-MWIG_40 = [
-"11B",
-"ABE",
-"ACP",
-"APR",
-"ASB",
-"ASE",
-"ATT",
-"BFT",
-"BHW",
-"BNP",
-"CAR",
-"CBF",
-"CPS",
-"DIA",
-"DOM",
-"DVL",
-"EAT",
-"ENA",
-"EUR",
-"GPP",
-"GPW",
-"HUG",
-"ING",
-"JSW",
-"LBW",
-"MBR",
-"MIL",
-"MRB",
-"NEU",
-"NWG",
-"PEP",
-"RBW",
-"SNT",
-"TEN",
-"TPE",
-"TXT",
-"VOX",
-"VRC",
-"WPL",
-"XTB"
-]
-
-WIG_20 = [
-"ALE",
-"ALR",
-"BDX",
-"CCC",
-"CDR",
-"DNP",
-"KGH",
-"KRU",
-"KTY",
-"LPP",
-"MBK",
-"OPL",
-"PCO",
-"PEO",
-"PGE",
-"PKN",
-"PKO",
-"PZU",
-"SPL",
-"ZAB"
-]
 
 
 def get_last_year_price_data(company_abbr: str):
@@ -341,7 +194,7 @@ if __name__ == "__main__":
             potential = calculate_potential(company)
             if potential["has_potential"]:
                 potential = format_potential(potential)
-                report = report + potential #+ "━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+                report = report + potential
 
         report = report + """
         <br><br>

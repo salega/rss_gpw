@@ -14,106 +14,22 @@ import sys
 from datetime import datetime, timedelta, date
 import yfinance as yf
 import warnings
-from urllib.parse import urljoin
 import pandas as pd
 
+from espi import get_espi_links_for_company
+from data import WIG_SECTOR_BY_TICKER
+
 warnings.simplefilter(action='ignore', category=FutureWarning)
+
 BASE_URL = "https://www.bankier.pl"
 NEWS_URL = f"{BASE_URL}/gielda/wiadomosci/"
-GPW_URL = "https://www.gpw.pl/"
 HEADERS = {"User-Agent": "Mozilla/5.0"}
 MOCKING_PERPLEXITY_ENABLED = False
 MOCKING_NEWS_ENABLED = False
 NEWS_MAX_PAGE = 50
-
-
 STOCK_EXCHANGES = {
     'GPW': '.WA', # Polska -> Giełda Papierów Wartościowych w Warszawie
     'NYSE': ''    # USA -> New York Stock Exchange
-}
-
-
-
-WIG_SECTOR_BY_TICKER = {
-    # banki
-    "BOS": "WIG-BANKI",
-
-    # budownictwo
-    "BDX": "WIG-BUDOW",
-    "ELT": "WIG-BUDOW",
-    "PXM": "WIG-BUDOW",
-    "TOR": "WIG-BUDOW",
-    "PBX": "WIG-BUDOW",
-    "ERB": "WIG-BUDOW",
-    "OND": "WIG-BUDOW",
-    "FRO": "WIG-BUDOW",
-    "MCR": "WIG-BUDOW",
-
-    # odzież / tekstylia
-    "MDV": "WIG-ODZIEZ",
-    "LBW": "WIG-ODZIEZ",
-    "PCO": "WIG-ODZIEZ",
-    "ARL": "WIG-ODZIEZ",
-    "WTN": "WIG-ODZIEZ",
-
-    # górnictwo
-    "KGH": "WIG-GORNIC",
-    "LWB": "WIG-GORNIC",
-    "BMC": "WIG-GORNIC",
-
-    # gry
-    "CDR": "WIG-GRY",
-    "11B": "WIG-GRY",
-    "TEN": "WIG-GRY",
-    "HUG": "WIG-GRY",
-    "CIG": "WIG-GRY",
-    "PLW": "WIG-GRY",
-
-    # paliwa / energia
-    "PKN": "WIG-PALIWA",
-    "UNT": "WIG-PALIWA",
-    "PGE": "WIG-ENERG",
-    "MLS": "WIG-ENERG",
-    "ZEP": "WIG-ENERG",
-    "PEP": "WIG-ENERG",
-
-    # spożywka / handel FMCG / restauracje
-    "DNP": "WIG-SPOZYW",
-    "EUR": "WIG-SPOZYW",
-    "EAT": "WIG-SPOZYW",
-    "TAR": "WIG-SPOZYW",
-
-    # chemia
-    "ATT": "WIG-CHEMIA",
-    "PCR": "WIG-CHEMIA",
-
-    # media
-    "WPL": "WIG-MEDIA",
-    "CPS": "WIG-MEDIA",
-
-    # leki
-    "MAB": "WIG-LEKI",
-    "RVU": "WIG-LEKI",
-    "SLV": "WIG-LEKI",
-    "SVE": "WIG-LEKI",
-
-    # informatyka
-    "ALL": "WIG-INFO",
-    "DAT": "WIG-INFO",
-    "GPP": "WIG-INFO",
-    "SNT": "WIG-INFO",
-    "SHO": "WIG-INFO",
-    "ACP": "WIG-INFO",
-    "ASE": "WIG-INFO",
-
-    # nieruchomości
-    "MUR": "WIG-NRCHOM",
-
-    # motoryzacja
-    "BRS": "WIG-MOTO",
-    "APR": "WIG-MOTO",
-    "ACG": "WIG-MOTO",
-    "WLT": "WIG-MOTO"
 }
 
 
@@ -277,8 +193,8 @@ def get_date_30_days_ago():
 
 
 def analyze_company(company: str, company_abbr: str, stock_exchange: str, company_keywords = [], company_document_links = [], sector_data = ""):
-    news_links = get_news_links_for_company(stock_exchange, company_keywords) 
-    espi_links = get_espi_links_for_company(stock_exchange, company_keywords)
+    news_links = get_news_links_for_company(stock_exchange, company_keywords)
+    espi_links = [link for link, *_ in get_espi_links_for_company(stock_exchange, company_keywords)]
     all_company_links = news_links + espi_links + company_document_links
 
     company_links_query = "Do zapytania załączyłem linki do newsów, newsów ESPI, raportów finansowych i innych oficjalnych dokumentów spółki " + company + "\n\n"
@@ -316,7 +232,7 @@ def get_news_links_for_company(stock_exchange: str, company_keywords):
     for i in range(1, NEWS_MAX_PAGE + 1):
         print("Pobieranie newsów ze strony " + str(i))
         all_news_links = all_news_links + get_news_links_for_page(str(i), company_keywords, get_date_30_days_ago())
-        time.sleep(random.uniform(1, 2))
+        time.sleep(random.uniform(0.5, 1))
 
     print("\nLinki do newsów:")
     for news_link in all_news_links:
@@ -324,63 +240,6 @@ def get_news_links_for_company(stock_exchange: str, company_keywords):
     print("")
 
     return all_news_links
-
-
-def get_espi_links_for_company(stock_exchange: str, company_keywords=[]):
-    if stock_exchange != "GPW":
-        return []
-    
-    espi_links = set()
-    cutoff = date.today() - timedelta(days=30)
-
-    for company_keyword in company_keywords:
-        url = (
-            f"{GPW_URL}komunikaty?categoryRaports=EBI,ESPI"
-            f"&typeRaports=RB,P,Q,O,R"
-            f"&searchText={company_keyword}"
-        )
-        print("Pobieranie newsów ESPI ze strony " + url)
-        response = requests.get(url)
-        response.raise_for_status()
-        soup = BeautifulSoup(response.text, 'html.parser')
-
-        ul = soup.find("ul", id="search-result")
-        if not ul:
-            continue
-
-        for li in ul.find_all("li"):
-            dspan = li.find("span", class_="date")
-            if not dspan or not dspan.text:
-                continue
-
-            raw = dspan.get_text(" ", strip=True).replace("\xa0", " ")
-            try:
-                day_str = raw[:10]  # "DD-MM-YYYY"
-                news_day = datetime.strptime(day_str, "%d-%m-%Y").date()
-            except Exception:
-                continue
-
-            if news_day < cutoff:
-                continue
-
-            a = li.find("a", href=True)
-            if not a:
-                continue
-            href = a["href"].strip()
-            if href.startswith("komunikat"):
-                full = urljoin(GPW_URL, href)
-            else:
-                continue
-
-            espi_links.add(full)
-        
-        time.sleep(random.uniform(1, 2))
-
-    print("\nLinki do newsów ESPI:")
-    for espi_link in espi_links:
-        print(espi_link)
-
-    return sorted(espi_links)
 
 
 def prepare_request(has_reports: bool):
