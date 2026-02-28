@@ -11,7 +11,7 @@ import time
 import random
 from bs4 import BeautifulSoup
 import sys
-from datetime import datetime, timedelta, date
+from datetime import datetime, timedelta
 import yfinance as yf
 import warnings
 import pandas as pd
@@ -243,8 +243,8 @@ def get_news_links_for_company(stock_exchange: str, company_keywords):
 
 
 def prepare_request(has_reports: bool):
-    find_reports_query = "Przeanalizuj załączone dokumenty dot. spółki i podsumuj w kilku zdaniach te dokumenty" if has_reports else "Znajdź ostatni raport roczny + 2 raporty kwartalne, prezentacje wyników z ostatnich 4 kwartałów (jeśli są), MD&A oraz wszelkie oficjalne raporty ze strony spółki"
-    " i przeanalizuj je"
+    find_reports_query = "Przeanalizuj załączone dokumenty dot. spółki i podsumuj w kilku zdaniach te dokumenty prostym językiem, a także uwzględnij je do późniejszej predykcji notowań " \
+        if has_reports else "Znajdź ostatni raport roczny + 2 raporty kwartalne, prezentacje wyników z ostatnich 4 kwartałów (jeśli są), MD&A oraz wszelkie oficjalne raporty ze strony spółki i przeanalizuj je"
     return (
     "\n\nMoje zapytanie: " + find_reports_query + ", a także przeanalizuj załączone dane historyczne ceny akcji, notowania indeksu sektorowego,"
     " newsy dotyczące tej spółki i oceń szanse na wzrost lub spadek wartości akcji dla swing tradera."
@@ -264,7 +264,7 @@ def prepare_request(has_reports: bool):
     " Na koniec oceń na podstawie wszystkich załączonych danych (dokumentów, newsów, notowań, własnych analiz), czy wartość akcji tej spółki urośnie, "
     " czy spadnie oraz w jakim terminie i dlaczego. Interesuje mnie predykcja pod kątem swing tradingu lub pod kątem długiej inwestycji np. wielomiesięcznej lub rocznej."
     " Dopisz, czy Twoim zdaniem większa jest szansa na wzrost, czy spadek wartości akcji oraz procent od 0 do 100, który ocenia Twoim zdaniem prawdopodobieństwo na to zdarzenie w najbliższej przyszłości"
-    " (i czy to raczej szybko, czy w dłuższym czasie)."
+    " (i czy to raczej szybko, czy w dłuższym czasie). W raporcie rozwijaj skróty i rób krótkie przypisy, jeśli jakiś skrót może wymagać branżowej wiedzy."
     " Na samym dole odpowiedzi podaj wszystkie linki do źródeł, których użyłeś (te moje i te, które sam znalazłeś)."
     )
 
