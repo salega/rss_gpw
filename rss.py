@@ -38,11 +38,6 @@ def window_prev_day_6am_pl():
     return start_pl.astimezone(timezone.utc), end_pl.astimezone(timezone.utc), start_pl, end_pl
 
 
-def guid(title, link):
-    base = (title or "") + "|" + (link or "")
-    return hashlib.sha256(base.encode("utf-8")).hexdigest()
-
-
 def render_item(time_text: str, title_html: str, link_url: str) -> str:
     link = f'[<a href="{link_url}">link</a>]\n'
     return f'<span style="font-size: 0.8em;">⏰{time_text} - <b>{title_html}</b> {link}</span>\n'
@@ -67,11 +62,10 @@ def collect_rss_items(feeds, start_utc, end_utc):
 
             title = (e.get("title") or "").strip()
             link = (e.get("link") or "").strip()
-            g = guid(title, link)
-            if g in seen:
+            if link in seen:
                 continue
 
-            seen.add(g)
+            seen.add(link)
             all_items.append((d_utc, title, link))
 
     all_items.sort(key=lambda x: x[0], reverse=True)
@@ -84,14 +78,14 @@ def collect_espi_links_for_all_companies(company_keywords: dict):
 
     for company_name, keywords in company_keywords.items():
         try:
-            links = get_espi_links_for_company("GPW", keywords, 1)
+            first_keyword = (keywords[0:1] if keywords else [])
+            links = get_espi_links_for_company("GPW", first_keyword, 1)
             for link in links:
-                g = guid(link[1], link[0])
-                if g in seen:
+                if link in seen:
                     continue
 
                 all_espi_links.append((link[0], link[1], link[2], company_name))
-                seen.add(g)
+                seen.add(link)
         except Exception as ex:
             all_espi_links.append(("", f"ESPI error: {ex}", "", company_name))
 
