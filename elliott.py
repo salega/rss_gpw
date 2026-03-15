@@ -19,7 +19,14 @@ def get_last_year_price_data(company_abbr: str):
     start_date = end_date - timedelta(days=365)
 
     data = yf.download(company_abbr + ".WA", start=start_date, end=end_date, progress=False)
-    prices = data['Close'][company_abbr + ".WA"].to_dict()
+
+    if data is None or data.empty:
+        return None
+
+    if isinstance(data.columns, pd.MultiIndex):
+        data = data.xs(company_abbr + ".WA", axis=1, level=-1)
+
+    prices = data[["Close", "High", "Low"]].dropna().to_dict(orient="index")
 
     return prices
 
@@ -56,20 +63,58 @@ def check_if_price_above_emas(data: Dict[pd.Timestamp, float]) -> Tuple[Optional
     )
 
 
+def check_nr7_confirmed_today(prices: Dict[pd.Timestamp, Dict[str, float]]) -> Optional[str]:
+    if not prices:
+        return None
+
+    df = pd.DataFrame.from_dict(prices, orient="index")[["High", "Low", "Close"]].dropna().sort_index()
+
+    if len(df) < 8:
+        return None
+
+    confirm_candle = df.iloc[-1]          # D
+    window_7 = df.iloc[-8:-1]             # D-7..D-1
+    last_candle = df.iloc[-2]             # D-1
+
+    ranges = (window_7["High"] - window_7["Low"])
+    last_range = float(last_candle["High"] - last_candle["Low"])
+
+    # NR7: D-1 ma najwęższy zakres z 7 świec
+    if last_range != float(ranges.min()):
+        return None
+
+    # remisy: jeśli kilka dni ma taki sam minimalny zakres, nie uznajemy NR7
+    if int((ranges == ranges.min()).sum()) != 1:
+        return None
+
+    high_7 = float(window_7["High"].max())
+    low_7 = float(window_7["Low"].min())
+    close_d = float(confirm_candle["Close"])
+
+    if close_d > high_7:
+        return "UP"
+    if close_d < low_7:
+        return "DOWN"
+
+    return None
+
+
 def calculate_potential(company_abbr: str):
     prices = get_last_year_price_data(company_abbr)
-    price_above_emas = check_if_price_above_emas(prices)
-    max = get_max_value(prices)
-    last = next(reversed(prices.items()))
-    penultimate = list(prices.items())[-2]
+    close_prices = {dt: float(v["Close"]) for dt, v in prices.items() if v and "Close" in v and v["Close"] is not None}
+
+    price_above_emas = check_if_price_above_emas(close_prices)
+    max = get_max_value(close_prices)
+    last = next(reversed(close_prices.items()))
+    penultimate = list(close_prices.items())[-2]
     max_value = float(max[1])
     last_value = float(last[1])
     penultimate_value = float(penultimate[1])
     max_date = max[0]
 
     seen_max = False
-    local_min_value = max_value  
-    for dt, val in prices.items():
+    local_min_value = max_value
+    for dt, val in close_prices.items():
         if not seen_max:
             if dt == max_date:
                 seen_max = True
@@ -84,18 +129,20 @@ def calculate_potential(company_abbr: str):
     is_at_least_one_ema_above = any(price_above_emas)
     has_potential = (max_40_percent_greater_than_local_min and is_at_least_one_ema_above and
                      today_between_10_and_50_percent_greater_than_local_min and today_higher_than_yesterday)
+    nr7 = check_nr7_confirmed_today(prices)
 
     return {
-            "company": company_abbr,
-            "has_potential": has_potential,
-            "above_ema_8": price_above_emas[0],
-            "above_ema_21": price_above_emas[1],
-            "above_ema_30": price_above_emas[2],
-            "max_value": f"{max_value:.2f}", 
-            "local_min_value": f"{local_min_value:.2f}",
-            "last_value": f"{last_value:.2f}",
-            "penultimate_value": f"{penultimate_value:.2f}"
-            }
+        "company": company_abbr,
+        "has_potential": has_potential,
+        "above_ema_8": price_above_emas[0],
+        "above_ema_21": price_above_emas[1],
+        "above_ema_30": price_above_emas[2],
+        "max_value": f"{max_value:.2f}",
+        "local_min_value": f"{local_min_value:.2f}",
+        "last_value": f"{last_value:.2f}",
+        "penultimate_value": f"{penultimate_value:.2f}",
+        "nr7": nr7
+    }
 
 
 def format_potential(potential):
@@ -104,12 +151,19 @@ def format_potential(potential):
     ema_21_icon = "✅️" if potential["above_ema_21"] else "❌"
     ema_30_icon = "✅️" if potential["above_ema_30"] else "❌"
 
+    nr7 = ""
+    if potential.get("nr7") == "UP":
+        nr7 = "📊NR7: ⬆️"
+    elif potential.get("nr7") == "DOWN":
+        nr7 = "📊NR7: ⬇️"
+
     formatted_entry = f"""\
 <div style="font-size: 0.88em; margin-top: 20px; padding: 0; line-height: 1.5;">
   <table cellpadding="0" cellspacing="0" style="border-collapse: collapse; margin: 0; padding: 0;">
     <tr style="margin: 0; padding: 0;">
       <td style="padding: 0 14px 0 0;">🏭<b>{potential["company"]}</b></td>
       <td style="padding: 0 14px 0 0;"><span style="font-size: 0.9em;">[<a href="{stooq_url}">stooq</a>]</span></td>
+      <td style="padding: 0;">{nr7}</td>
     </tr>
     <tr style="margin: 0; padding: 0;">
       <td style="padding: 0 14px 0 0;">📈EMA8: {ema_8_icon}</td>
@@ -126,6 +180,14 @@ def format_potential(potential):
     return formatted_entry
 
 
+def get_if_has_potential(company):
+    potential = calculate_potential(company)
+    if potential["has_potential"] or potential["nr7"]:
+        potential = format_potential(potential)
+        return potential
+    return ""
+
+
 if __name__ == "__main__":
 
     if os.environ["RUN_FOR_ALL_COMPANIES"] == "true":
@@ -136,22 +198,13 @@ if __name__ == "__main__":
     if company_abbr == "":
         report = '<span style="font-size: 1.6em;"><b>🏪SWIG80:</b></span><br>━━━━━━━━━━━━━━━━━━━━━━━━━━━━'
         for company in SWIG_80:
-            potential = calculate_potential(company)
-            if potential["has_potential"]:
-                potential = format_potential(potential)
-                report = report + potential #+ "━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+            report = report + get_if_has_potential(company)
         report = report + '<br><br><span style="font-size: 1.6em;"><b>🏬MWIG40:</b></span><br>━━━━━━━━━━━━━━━━━━━━━━━━━━━━'
         for company in MWIG_40:
-            potential = calculate_potential(company)
-            if potential["has_potential"]:
-                potential = format_potential(potential)
-                report = report + potential# + "━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+            report = report + get_if_has_potential(company)
         report = report + '<br><br><span style="font-size: 1.6em;"><b>🏢WIG20:</b></span><br>━━━━━━━━━━━━━━━━━━━━━━━━━━━━'
         for company in WIG_20:
-            potential = calculate_potential(company)
-            if potential["has_potential"]:
-                potential = format_potential(potential)
-                report = report + potential
+            report = report + get_if_has_potential(company)
 
         report = report + """
         <br><br>
