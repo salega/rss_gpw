@@ -212,7 +212,7 @@ def calculate_potential(company_abbr: str):
     max_40_percent_greater_than_local_min = max_value > local_min_value * 1.4
     today_between_10_and_50_percent_greater_than_local_min = local_min_value * 1.1 < last_value <= local_min_value * 1.5
     today_higher_than_yesterday = last_value > penultimate_value
-    is_at_least_one_ema_above = any(price_above_emas)
+    is_at_least_one_ema_above = price_above_emas[0] or price_above_emas[1]
     has_potential = (max_40_percent_greater_than_local_min and is_at_least_one_ema_above and
                      today_between_10_and_50_percent_greater_than_local_min and today_higher_than_yesterday)
     nr7 = check_nr7_confirmed_today(prices)
