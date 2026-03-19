@@ -5,7 +5,7 @@ import pandas as pd
 import warnings
 from typing import Dict, Tuple, Optional
 
-from datetime import  datetime, timedelta
+from datetime import datetime, timedelta
 import os
 
 from send_email import send_email
@@ -58,8 +58,8 @@ def check_if_price_above_emas(data: Dict[pd.Timestamp, float]) -> Tuple[Optional
 
     return (
         ema_above(8),
-        ema_above(21),
         ema_above(30),
+        ema_above(200),
     )
 
 
@@ -72,9 +72,9 @@ def check_nr7_confirmed_today(prices: Dict[pd.Timestamp, Dict[str, float]]) -> O
     if len(df) < 8:
         return None
 
-    confirm_candle = df.iloc[-1]          # D
-    window_7 = df.iloc[-8:-1]             # D-7..D-1
-    last_candle = df.iloc[-2]             # D-1
+    confirm_candle = df.iloc[-1]  # D
+    window_7 = df.iloc[-8:-1]  # D-7..D-1
+    last_candle = df.iloc[-2]  # D-1
 
     ranges = (window_7["High"] - window_7["Low"])
     last_range = float(last_candle["High"] - last_candle["Low"])
@@ -145,7 +145,7 @@ def check_rectangle_breakout_today(
     min_touches = 2
     parts: list[str] = []
 
-    for length_days in range(20, 91, 15):
+    for length_days in list(range(20, 91, 15)) + [180]:
         if len(history) < length_days:
             continue
 
@@ -222,8 +222,8 @@ def calculate_potential(company_abbr: str):
         "company": company_abbr,
         "has_potential": has_potential,
         "above_ema_8": price_above_emas[0],
-        "above_ema_21": price_above_emas[1],
-        "above_ema_30": price_above_emas[2],
+        "above_ema_30": price_above_emas[1],
+        "above_ema_200": price_above_emas[2],
         "max_value": f"{max_value:.2f}",
         "local_min_value": f"{local_min_value:.2f}",
         "last_value": f"{last_value:.2f}",
@@ -236,8 +236,8 @@ def calculate_potential(company_abbr: str):
 def format_potential(potential):
     stooq_url = f'https://stooq.pl/q/?s={potential["company"]}'
     ema_8_icon = "✅️" if potential["above_ema_8"] else "❌"
-    ema_21_icon = "✅️" if potential["above_ema_21"] else "❌"
     ema_30_icon = "✅️" if potential["above_ema_30"] else "❌"
+    ema_200_icon = "✅️" if potential["above_ema_200"] else "❌"
 
     nr7 = ""
     if potential.get("nr7") == "UP":
@@ -259,8 +259,8 @@ def format_potential(potential):
     </tr>
     <tr style="margin: 0; padding: 0;">
       <td style="padding: 0 14px 0 0;">📈EMA8: {ema_8_icon}</td>
-      <td style="padding: 0 14px 0 0;">📈EMA21: {ema_21_icon}</td>
-      <td style="padding: 0;">📈EMA30: {ema_30_icon}</td>
+      <td style="padding: 0 14px 0 0;">📈EMA30: {ema_30_icon}</td>
+      <td style="padding: 0;">📈EMA200: {ema_200_icon}</td>
     </tr>
     <tr style="margin: 0; padding: 0;">
       <td style="padding: 0 14px 0 0;">⬆️{potential["max_value"]}</td>
