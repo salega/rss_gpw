@@ -99,6 +99,92 @@ def check_nr7_confirmed_today(prices: Dict[pd.Timestamp, Dict[str, float]]) -> O
     return None
 
 
+def check_rectangle_breakout_today(
+        prices: Dict[pd.Timestamp, Dict[str, float]],
+        touch_tolerance_of_height: float = 0.15
+) -> Optional[str]:
+    """
+    Szuka wybić z formacji prostokąta (tylko po cenach zamknięcia) dla długości okna:
+      20..90 co 15 => 20, 35, 50, 65, 80
+
+    (okno zawsze kończy się wczoraj, breakout sprawdzany na dzisiejszym Close).
+
+    Zasady:
+      - max_height_pct:
+          * 0.10 dla length_days <= 40
+          * 0.20 dla length_days > 40
+      - min_touches zawsze = 2 (dla wsparcia i oporu)
+      - min_days_between_touches = length_days // 4
+
+    Zwraca jeden string zawierający wszystkie znalezione wybicia w formacie:
+      "▭ 50: ⬇️ (22.10↔️23.05)   ▭ 65: ⬇️ (21.95↔️23.10)"
+    albo None gdy brak.
+    """
+    if not prices:
+        return None
+
+    df = pd.DataFrame.from_dict(prices, orient="index")[["Close"]].dropna().sort_index()
+    if len(df) < 21:
+        return None
+
+    close_today = float(df.iloc[-1]["Close"])
+    history = df.iloc[:-1]  # D-... do wczoraj
+
+    def count_spaced_touches(mask: pd.Series, min_gap: int) -> int:
+        idx_positions = [i for i, is_touch in enumerate(mask.tolist()) if bool(is_touch)]
+        if not idx_positions:
+            return 0
+        count = 1
+        last_pos = idx_positions[0]
+        for pos in idx_positions[1:]:
+            if (pos - last_pos) >= min_gap:
+                count += 1
+                last_pos = pos
+        return count
+
+    min_touches = 2
+    parts: list[str] = []
+
+    for length_days in range(20, 91, 15):
+        if len(history) < length_days:
+            continue
+
+        max_height_pct = 0.10 if length_days <= 40 else 0.20
+        min_days_between_touches = max(1, length_days // 4)
+
+        window = history.iloc[-length_days:]
+        support = float(window["Close"].min())
+        resistance = float(window["Close"].max())
+
+        if support <= 0:
+            continue
+
+        height = resistance - support
+        if height <= 0:
+            continue
+
+        height_pct = height / support
+        if height_pct > max_height_pct:
+            continue
+
+        tol = touch_tolerance_of_height * height
+        support_mask = window["Close"] <= (support + tol)
+        resistance_mask = window["Close"] >= (resistance - tol)
+
+        touches_support = count_spaced_touches(support_mask, min_days_between_touches)
+        touches_resistance = count_spaced_touches(resistance_mask, min_days_between_touches)
+
+        if touches_support < min_touches or touches_resistance < min_touches:
+            continue
+
+        if close_today > resistance:
+            parts.append(f"▭{length_days}⬆️ ({support:.2f}↔️{resistance:.2f})")
+        elif close_today < support:
+            parts.append(f"▭{length_days}⬇️ ({support:.2f}↔️{resistance:.2f})")
+
+    return "   ".join(parts) if parts else None
+
+
 def calculate_potential(company_abbr: str):
     prices = get_last_year_price_data(company_abbr)
     close_prices = {dt: float(v["Close"]) for dt, v in prices.items() if v and "Close" in v and v["Close"] is not None}
@@ -124,12 +210,13 @@ def calculate_potential(company_abbr: str):
             local_min_value = float(val)
 
     max_40_percent_greater_than_local_min = max_value > local_min_value * 1.4
-    today_between_10_and_50_percent_greater_than_local_min = last_value > local_min_value * 1.1 and last_value <= local_min_value * 1.5
+    today_between_10_and_50_percent_greater_than_local_min = local_min_value * 1.1 < last_value <= local_min_value * 1.5
     today_higher_than_yesterday = last_value > penultimate_value
     is_at_least_one_ema_above = any(price_above_emas)
     has_potential = (max_40_percent_greater_than_local_min and is_at_least_one_ema_above and
                      today_between_10_and_50_percent_greater_than_local_min and today_higher_than_yesterday)
     nr7 = check_nr7_confirmed_today(prices)
+    rectangle_breakout_today = check_rectangle_breakout_today(prices)
 
     return {
         "company": company_abbr,
@@ -141,7 +228,8 @@ def calculate_potential(company_abbr: str):
         "local_min_value": f"{local_min_value:.2f}",
         "last_value": f"{last_value:.2f}",
         "penultimate_value": f"{penultimate_value:.2f}",
-        "nr7": nr7
+        "nr7": nr7,
+        "rectangle_breakout_today": rectangle_breakout_today
     }
 
 
@@ -156,6 +244,10 @@ def format_potential(potential):
         nr7 = "📊NR7: ⬆️"
     elif potential.get("nr7") == "DOWN":
         nr7 = "📊NR7: ⬇️"
+
+    rectangle_breakout = ""
+    if potential.get("rectangle_breakout_today"):
+        rectangle_breakout = f"{potential['rectangle_breakout_today']}"
 
     formatted_entry = f"""\
 <div style="font-size: 0.88em; margin-top: 20px; padding: 0; line-height: 1.5;">
@@ -175,6 +267,9 @@ def format_potential(potential):
       <td style="padding: 0 14px 0 0;">⬇️{potential["local_min_value"]}</td>
       <td style="padding: 0;">🆕{potential["penultimate_value"]} → {potential["last_value"]}</td>
     </tr>
+    <tr style="margin: 0; padding: 0;">
+      <td colspan="3" style="padding: 6px 0 0 0;">{rectangle_breakout}</td>
+    </tr>
   </table>
 </div>"""
     return formatted_entry
@@ -182,7 +277,7 @@ def format_potential(potential):
 
 def get_if_has_potential(company):
     potential = calculate_potential(company)
-    if potential["has_potential"] or potential["nr7"]:
+    if potential["has_potential"] or potential["nr7"] or potential["rectangle_breakout_today"]:
         potential = format_potential(potential)
         return potential
     return ""
