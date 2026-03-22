@@ -67,8 +67,8 @@ def check_rectangle_breakout_today(
             continue
 
         if close_today > resistance:
-            parts.append(f"▭{length_days}⬆️ ({support:.2f}↔️{resistance:.2f})")
+            parts.append(f"🟩{length_days}⬆️ ({support:.2f}↔️{resistance:.2f})")
         elif INCLUDE_RECTANGLE_BREAKOUT_DOWN and close_today < support:
-            parts.append(f"▭{length_days}⬇️ ({support:.2f}↔️{resistance:.2f})")
+            parts.append(f"🟩{length_days}⬇️ ({support:.2f}↔️{resistance:.2f})")
 
     return "   ".join(parts) if parts else None

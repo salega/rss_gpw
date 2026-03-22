@@ -52,8 +52,8 @@ def check_flat_base_breakout_today(
             continue
 
         if close_today > resistance:
-            parts.append(f"▱{length_days}⬆️ (R≈{resistance:.2f}, touches={touches_resistance})")
+            parts.append(f"💥{length_days}⬆️ (R≈{resistance:.2f}, touches={touches_resistance})")
         elif INCLUDE_BASE_BREAKOUT_DOWN and close_today < (resistance - tol_abs):
-            parts.append(f"▱{length_days}⬇️ (R≈{resistance:.2f}, touches={touches_resistance})")
+            parts.append(f"💥{length_days}⬇️ (R≈{resistance:.2f}, touches={touches_resistance})")
 
     return "   ".join(parts) if parts else None
