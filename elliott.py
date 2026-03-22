@@ -9,12 +9,14 @@ from datetime import datetime, timedelta
 import os
 
 from send_email import send_email
+from formations.flag import check_flag_breakout_today
+from formations.rectangle import check_rectangle_breakout_today
+from formations.flat_base import check_flat_base_breakout_today
+from formations.nr7 import check_nr7_confirmed_today
 from data import SWIG_80, MWIG_40, WIG_20
 
 warnings.simplefilter(action='ignore', category=FutureWarning)
 INCLUDE_DOWN_NR7 = False
-INCLUDE_RECTANGLE_BREAKOUT_DOWN = False
-INCLUDE_BASE_BREAKOUT_DOWN = False
 
 
 def get_last_year_price_data(company_abbr: str):
@@ -66,166 +68,6 @@ def check_if_price_above_emas(data: Dict[pd.Timestamp, float]) -> Tuple[Optional
     )
 
 
-def check_nr7_confirmed_today(prices: Dict[pd.Timestamp, Dict[str, float]]) -> Optional[str]:
-    if not prices:
-        return None
-
-    df = pd.DataFrame.from_dict(prices, orient="index")[["High", "Low", "Close"]].dropna().sort_index()
-
-    if len(df) < 8:
-        return None
-
-    confirm_candle = df.iloc[-1]  # D
-    window_7 = df.iloc[-8:-1]  # D-7..D-1
-    last_candle = df.iloc[-2]  # D-1
-
-    ranges = (window_7["High"] - window_7["Low"])
-    last_range = float(last_candle["High"] - last_candle["Low"])
-
-    # NR7: D-1 ma najwęższy zakres z 7 świec
-    if last_range != float(ranges.min()):
-        return None
-
-    # remisy: jeśli kilka dni ma taki sam minimalny zakres, nie uznajemy NR7
-    if int((ranges == ranges.min()).sum()) != 1:
-        return None
-
-    high_7 = float(window_7["High"].max())
-    low_7 = float(window_7["Low"].min())
-    close_d = float(confirm_candle["Close"])
-
-    if close_d > high_7:
-        return "UP"
-    
-    if INCLUDE_DOWN_NR7 and close_d < low_7:
-        return "DOWN"
-
-    return None
-
-
-def check_rectangle_breakout_today(
-        prices: Dict[pd.Timestamp, Dict[str, float]],
-        touch_tolerance_of_height: float = 0.15
-) -> Optional[str]:
-    if not prices:
-        return None
-
-    df = pd.DataFrame.from_dict(prices, orient="index")[["Close"]].dropna().sort_index()
-    if len(df) < 21:
-        return None
-
-    close_today = float(df.iloc[-1]["Close"])
-    history = df.iloc[:-1]  # D-... do wczoraj
-
-    def count_spaced_touches(mask: pd.Series, min_gap: int) -> int:
-        idx_positions = [i for i, is_touch in enumerate(mask.tolist()) if bool(is_touch)]
-        if not idx_positions:
-            return 0
-        count = 1
-        last_pos = idx_positions[0]
-        for pos in idx_positions[1:]:
-            if (pos - last_pos) >= min_gap:
-                count += 1
-                last_pos = pos
-        return count
-
-    min_touches = 2
-    parts: list[str] = []
-
-    for length_days in list(range(20, 91, 15)) + [180]:
-        if len(history) < length_days:
-            continue
-
-        max_height_pct = 0.10 if length_days <= 40 else 0.20
-        min_days_between_touches = max(1, length_days // 4)
-
-        window = history.iloc[-length_days:]
-        support = float(window["Close"].min())
-        resistance = float(window["Close"].max())
-
-        if support <= 0:
-            continue
-
-        height = resistance - support
-        if height <= 0:
-            continue
-
-        height_pct = height / support
-        if height_pct > max_height_pct:
-            continue
-
-        tol = touch_tolerance_of_height * height
-        support_mask = window["Close"] <= (support + tol)
-        resistance_mask = window["Close"] >= (resistance - tol)
-
-        touches_support = count_spaced_touches(support_mask, min_days_between_touches)
-        touches_resistance = count_spaced_touches(resistance_mask, min_days_between_touches)
-
-        if touches_support < min_touches or touches_resistance < min_touches:
-            continue
-
-        if close_today > resistance:
-            parts.append(f"▭{length_days}⬆️ ({support:.2f}↔️{resistance:.2f})")
-        elif INCLUDE_RECTANGLE_BREAKOUT_DOWN and close_today < support:
-            parts.append(f"▭{length_days}⬇️ ({support:.2f}↔️{resistance:.2f})")
-
-    return "   ".join(parts) if parts else None
-
-
-def check_flat_base_breakout_today(
-        prices: Dict[pd.Timestamp, Dict[str, float]],
-        touch_tolerance_pct: float = 0.01,
-        min_touches_resistance: int = 3
-) -> Optional[str]:
-    if not prices:
-        return None
-
-    df = pd.DataFrame.from_dict(prices, orient="index")[["Close"]].dropna().sort_index()
-    if len(df) < 21:
-        return None
-
-    close_today = float(df.iloc[-1]["Close"])
-    history = df.iloc[:-1]  # do wczoraj
-
-    def count_spaced_touches(mask: pd.Series, min_gap: int) -> int:
-        idx_positions = [i for i, is_touch in enumerate(mask.tolist()) if bool(is_touch)]
-        if not idx_positions:
-            return 0
-        count = 1
-        last_pos = idx_positions[0]
-        for pos in idx_positions[1:]:
-            if (pos - last_pos) >= min_gap:
-                count += 1
-                last_pos = pos
-        return count
-
-    parts: list[str] = []
-
-    for length_days in list(range(20, 91, 15)) + [180]:
-        if len(history) < length_days:
-            continue
-
-        window = history.iloc[-length_days:]
-        resistance = float(window["Close"].max())
-        if resistance <= 0:
-            continue
-
-        tol_abs = touch_tolerance_pct * resistance
-        resistance_mask = window["Close"] >= (resistance - tol_abs)
-
-        min_days_between_touches = max(1, length_days // 4)
-        touches_resistance = count_spaced_touches(resistance_mask, min_days_between_touches)
-        if touches_resistance < min_touches_resistance:
-            continue
-
-        if close_today > resistance:
-            parts.append(f"▱{length_days}⬆️ (R≈{resistance:.2f}, touches={touches_resistance})")
-        elif INCLUDE_BASE_BREAKOUT_DOWN and close_today < (resistance - tol_abs):
-            parts.append(f"▱{length_days}⬇️ (R≈{resistance:.2f}, touches={touches_resistance})")
-
-    return "   ".join(parts) if parts else None
-
-
 def calculate_potential(company_abbr: str):
     prices = get_last_year_price_data(company_abbr)
     close_prices = {dt: float(v["Close"]) for dt, v in prices.items() if v and "Close" in v and v["Close"] is not None}
@@ -259,6 +101,7 @@ def calculate_potential(company_abbr: str):
     nr7 = check_nr7_confirmed_today(prices)
     rectangle_breakout_today = check_rectangle_breakout_today(prices)
     flat_base_breakout_today = check_flat_base_breakout_today(prices)
+    flag_breakout_today = check_flag_breakout_today(company_abbr, prices)
 
     return {
         "company": company_abbr,
@@ -272,7 +115,8 @@ def calculate_potential(company_abbr: str):
         "penultimate_value": f"{penultimate_value:.2f}",
         "nr7": nr7,
         "rectangle_breakout_today": rectangle_breakout_today,
-        "flat_base_breakout_today": flat_base_breakout_today
+        "flat_base_breakout_today": flat_base_breakout_today,
+        "flag_breakout_today": flag_breakout_today
     }
 
 
@@ -295,6 +139,10 @@ def format_potential(potential):
     flat_base_breakout = ""
     if potential.get("flat_base_breakout_today"):
         flat_base_breakout = f"{potential['flat_base_breakout_today']}"
+
+    flag_breakout = ""
+    if potential.get("flag_breakout_today"):
+        flag_breakout = f"{potential['flag_breakout_today']}"
 
     formatted_entry = f"""\
 <div style="font-size: 0.88em; margin-top: 20px; padding: 0; line-height: 1.5;">
@@ -320,6 +168,9 @@ def format_potential(potential):
     <tr style="margin: 0; padding: 0;">
       <td colspan="3" style="padding: 6px 0 0 0;">{flat_base_breakout}</td>
     </tr>
+    <tr style="margin: 0; padding: 0;">
+      <td colspan="3" style="padding: 6px 0 0 0;">{flag_breakout}</td>
+    </tr>
   </table>
 </div>"""
     return formatted_entry
@@ -327,7 +178,8 @@ def format_potential(potential):
 
 def get_if_has_potential(company):
     potential = calculate_potential(company)
-    if potential["has_potential"] or potential["nr7"] or potential["rectangle_breakout_today"] or potential["flat_base_breakout_today"]:
+    if (potential["has_potential"] or potential["nr7"] or potential["rectangle_breakout_today"]
+            or potential["flat_base_breakout_today"] or potential["flag_breakout_today"]):
         potential = format_potential(potential)
         return potential
     return ""
