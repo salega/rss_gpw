@@ -1,26 +1,27 @@
-import sys
-import yfinance as yf
-from operator import itemgetter
-import pandas as pd
-import warnings
-from typing import Dict, Tuple, Optional
-
-from datetime import datetime, timedelta
 import os
+import sys
+import warnings
+from datetime import datetime, timedelta
 
-from send_email import send_email
+import pandas as pd
+import yfinance as yf
+
+from data import SWIG_80, MWIG_40, WIG_20
 from formations.flag import check_flag_breakout_today
-from formations.rectangle import check_rectangle_breakout_today
 from formations.flat_base import check_flat_base_breakout_today
 from formations.nr7 import check_nr7_confirmed_today
-from data import SWIG_80, MWIG_40, WIG_20
+from formations.rectangle import check_rectangle_breakout_today
+from send_email import send_email
+from util import check_if_price_above_emas
+from util import get_max_value
 
 warnings.simplefilter(action='ignore', category=FutureWarning)
 INCLUDE_DOWN_NR7 = False
+DATE_TO_SIMULATE = None #datetime(2025, 7, 9)
 
 
 def get_last_year_price_data(company_abbr: str):
-    end_date = datetime.today()
+    end_date = DATE_TO_SIMULATE if DATE_TO_SIMULATE else datetime.today()
     start_date = end_date - timedelta(days=365)
 
     data = yf.download(company_abbr + ".WA", start=start_date, end=end_date, progress=False)
@@ -31,45 +32,17 @@ def get_last_year_price_data(company_abbr: str):
     if isinstance(data.columns, pd.MultiIndex):
         data = data.xs(company_abbr + ".WA", axis=1, level=-1)
 
-    prices = data[["Close", "High", "Low"]].dropna().to_dict(orient="index")
+    prices = data[["Open", "Close", "High", "Low"]].dropna().to_dict(orient="index")
 
     return prices
 
 
-def get_max_value(prices):
-    if not prices:
-        return None
-    return max(prices.items(), key=itemgetter(1))
-
-
-def get_min_value(prices):
-    if not prices:
-        return None
-    return min(prices.items(), key=itemgetter(1))
-
-
-def check_if_price_above_emas(data: Dict[pd.Timestamp, float]) -> Tuple[Optional[bool], Optional[bool], Optional[bool]]:
-    if not data:
-        raise ValueError("Pusty zbiór danych")
-
-    s = pd.Series(data).sort_index()
-    last_price = s.iloc[-1]
-
-    def ema_above(span: int) -> Optional[bool]:
-        ema = s.ewm(span=span, adjust=False, min_periods=span).mean()
-        if pd.isna(ema.iloc[-1]):
-            return None
-        return bool(last_price > ema.iloc[-1])
-
-    return (
-        ema_above(8),
-        ema_above(30),
-        ema_above(200),
-    )
-
-
 def calculate_potential(company_abbr: str):
     prices = get_last_year_price_data(company_abbr)
+
+    if prices is None:
+        return None
+
     close_prices = {dt: float(v["Close"]) for dt, v in prices.items() if v and "Close" in v and v["Close"] is not None}
 
     price_above_emas = check_if_price_above_emas(close_prices)
@@ -126,23 +99,16 @@ def format_potential(potential):
     ema_30_icon = "✅️" if potential["above_ema_30"] else "❌"
     ema_200_icon = "✅️" if potential["above_ema_200"] else "❌"
 
-    nr7 = ""
-    if potential.get("nr7") == "UP":
-        nr7 = "📊NR7: ⬆️"
-    elif potential.get("nr7") == "DOWN":
-        nr7 = "📊NR7: ⬇️"
+    nr7 = potential.get("nr7") or ""
 
-    rectangle_breakout = ""
-    if potential.get("rectangle_breakout_today"):
-        rectangle_breakout = f"{potential['rectangle_breakout_today']}"
+    def build_row(content):
+        if not content:
+            return ""
+        return f'<tr style="margin: 0; padding: 0;"><td colspan="3" style="padding: 0;">{content}</td></tr>'
 
-    flat_base_breakout = ""
-    if potential.get("flat_base_breakout_today"):
-        flat_base_breakout = f"{potential['flat_base_breakout_today']}"
-
-    flag_breakout = ""
-    if potential.get("flag_breakout_today"):
-        flag_breakout = f"{potential['flag_breakout_today']}"
+    rectangle_breakout = build_row(potential.get("rectangle_breakout_today"))
+    flat_base_breakout = build_row(potential.get("flat_base_breakout_today"))
+    flag_breakout = build_row(potential.get("flag_breakout_today"))
 
     formatted_entry = f"""\
 <div style="font-size: 0.88em; margin-top: 20px; padding: 0; line-height: 1.5;">
@@ -162,15 +128,9 @@ def format_potential(potential):
       <td style="padding: 0 14px 0 0;">⬇️{potential["local_min_value"]}</td>
       <td style="padding: 0;">🆕{potential["penultimate_value"]} → {potential["last_value"]}</td>
     </tr>
-    <tr style="margin: 0; padding: 0;">
-      <td colspan="3" style="padding: 6px 0 0 0;">{rectangle_breakout}</td>
-    </tr>
-    <tr style="margin: 0; padding: 0;">
-      <td colspan="3" style="padding: 6px 0 0 0;">{flat_base_breakout}</td>
-    </tr>
-    <tr style="margin: 0; padding: 0;">
-      <td colspan="3" style="padding: 6px 0 0 0;">{flag_breakout}</td>
-    </tr>
+    {rectangle_breakout}
+    {flat_base_breakout}
+    {flag_breakout}
   </table>
 </div>"""
     return formatted_entry
@@ -178,8 +138,9 @@ def format_potential(potential):
 
 def get_if_has_potential(company):
     potential = calculate_potential(company)
-    if (potential["has_potential"] or potential["nr7"] or potential["rectangle_breakout_today"]
-            or potential["flat_base_breakout_today"] or potential["flag_breakout_today"]):
+
+    if (potential and (potential["has_potential"] or potential["nr7"] or potential["rectangle_breakout_today"]
+                       or potential["flat_base_breakout_today"] or potential["flag_breakout_today"])):
         potential = format_potential(potential)
         return potential
     return ""

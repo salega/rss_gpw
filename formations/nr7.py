@@ -1,5 +1,6 @@
-import pandas as pd
 from typing import Dict, Optional
+
+import pandas as pd
 
 INCLUDE_DOWN_NR7 = False
 
@@ -33,9 +34,9 @@ def check_nr7_confirmed_today(prices: Dict[pd.Timestamp, Dict[str, float]]) -> O
     close_d = float(confirm_candle["Close"])
 
     if close_d > high_7:
-        return "UP"
+        return "📊NR7: ⬆️"
 
     if INCLUDE_DOWN_NR7 and close_d < low_7:
-        return "DOWN"
+        return "📊NR7: ⬇️"
 
     return None
