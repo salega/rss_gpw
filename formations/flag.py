@@ -1,12 +1,9 @@
+from typing import Dict, Optional, List
 
 import pandas as pd
-import numpy as np
-from typing import Dict, Tuple, Optional, List
-from datetime import datetime
 
 
 def check_flag_breakout_today(
-        company_abbr,
         prices: Dict[pd.Timestamp, Dict[str, float]],
         lookback_days: int = 200,
         pole_min_days: int = 3,
@@ -55,7 +52,8 @@ def check_flag_breakout_today(
 
     for pole_start_idx in range(len(recent_df) - pole_min_days - flag_min_days):
 
-        for initial_pole_length in range(pole_min_days, min(pole_max_days + 1, len(recent_df) - pole_start_idx - flag_min_days)):
+        for initial_pole_length in range(pole_min_days,
+                                         min(pole_max_days + 1, len(recent_df) - pole_start_idx - flag_min_days)):
             pole_end_idx = pole_start_idx + initial_pole_length - 1
             pole_window = recent_df.iloc[pole_start_idx:pole_end_idx + 1]
 
@@ -65,7 +63,7 @@ def check_flag_breakout_today(
             if has_open:
                 peaks = pole_window["Close"].values  # Close = rzeczywisty szczyt ciała świecy
             else:
-                peaks = pole_window["High"].values   # High = szczyt z knotem
+                peaks = pole_window["High"].values  # High = szczyt z knotem
 
             # Warunek: pierwszy dzień nie może spadać (względem dnia przed pole_start_idx, jeśli istnieje)
             if pole_start_idx > 0:
@@ -97,14 +95,14 @@ def check_flag_breakout_today(
                     break
 
                 # Sprawdzamy czy spadek Close jest dozwolony (jeśli nie jest to nowy MAX)
-                if i > 0 and current_close < float(closes[i-1]):
+                if i > 0 and current_close < float(closes[i - 1]):
                     if i < 2:
                         # Drugi dzień nie może spadać
                         valid_pole = False
                         break
 
-                    day_before_prev_close = float(closes[i-2])
-                    previous_close = float(closes[i-1])
+                    day_before_prev_close = float(closes[i - 2])
+                    previous_close = float(closes[i - 1])
                     previous_day_gain = previous_close - day_before_prev_close
 
                     if previous_day_gain <= 0:
@@ -281,8 +279,8 @@ def check_flag_breakout_today(
 
     return (
         f"🚩FLAG({best['days_since_breakout']}d ago): "
-        f"Pole start:{pole_start_str}({best['pole_length']}d,+{best['pole_growth']*100:.1f}%), "
-        f"Flag start:{flag_start_str}({best['flag_length']}d,ret{best['retracement']*100:.1f}%), "
+        f"Pole start:{pole_start_str}({best['pole_length']}d,+{best['pole_growth'] * 100:.1f}%), "
+        f"Flag start:{flag_start_str}({best['flag_length']}d,ret{best['retracement'] * 100:.1f}%), "
         f"Breakout:{breakout_str}@{best['breakout_price']:.2f}, "
         f"MAX={best['max_price']:.2f}, target≈{best['target_price']:.2f}"
     )

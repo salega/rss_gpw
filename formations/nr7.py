@@ -1,7 +1,6 @@
 import pandas as pd
 from typing import Dict, Optional
 
-
 INCLUDE_DOWN_NR7 = False
 
 

@@ -101,7 +101,7 @@ def calculate_potential(company_abbr: str):
     nr7 = check_nr7_confirmed_today(prices)
     rectangle_breakout_today = check_rectangle_breakout_today(prices)
     flat_base_breakout_today = check_flat_base_breakout_today(prices)
-    flag_breakout_today = check_flag_breakout_today(company_abbr, prices)
+    flag_breakout_today = check_flag_breakout_today(prices)
 
     return {
         "company": company_abbr,
