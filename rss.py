@@ -1,22 +1,21 @@
-import feedparser
-from datetime import datetime, timedelta, timezone
 import time
+from datetime import datetime, timedelta, timezone
 from itertools import islice
 from zoneinfo import ZoneInfo
 
-from send_email import send_email
+import feedparser
+
 from espi import get_espi_links_for_company
-from data import COMPANY_KEYWORDS, SWIG_80, MWIG_40, WIG_20
-from formations.gap import get_if_theoretical_open_is_bearish_gap_vs_yesterday_close
+from send_email import send_email
 
 PL_TZ = ZoneInfo("Europe/Warsaw")
 
 FEEDS = [
-    "https://www.bankier.pl/rss/gielda.xml",                 # Bankier - Giełda
-    "https://www.bankier.pl/rss/espi.xml",                   # Bankier - ESPI
-    "https://www.money.pl/rss/gielda",                       # Money.pl - Giełda (kanał RSS)
-    "https://www.pb.pl/rss/puls-inwestora.xml",              # Puls Biznesu - Puls Inwestora
-    "https://www.pb.pl/rss/notowania.xml",                   # Puls Biznesu - Notowania  (UWAGA: poprawiony URL)
+    "https://www.bankier.pl/rss/gielda.xml",  # Bankier - Giełda
+    "https://www.bankier.pl/rss/espi.xml",  # Bankier - ESPI
+    "https://www.money.pl/rss/gielda",  # Money.pl - Giełda (kanał RSS)
+    "https://www.pb.pl/rss/puls-inwestora.xml",  # Puls Biznesu - Puls Inwestora
+    "https://www.pb.pl/rss/notowania.xml",  # Puls Biznesu - Notowania  (UWAGA: poprawiony URL)
 ]
 
 
@@ -92,30 +91,6 @@ def collect_espi_links_for_all_companies(company_keywords: dict):
     return all_espi_links
 
 
-def render_theoretical_open_gaps_section() -> str:
-    report = '<br><br>━━━━━━━━━━━━━━━━━━━━━━━━━━━━<br>'
-    report += "<b><span style='font-size: 1.15em;'>📉 TKO vs wczorajsze zamknięcie</span></b><br><br>"
-
-    gap_lines = ""
-    for idx_name, companies in [("SWIG80", SWIG_80), ("MWIG40", MWIG_40), ("WIG20", WIG_20)]:
-        group_lines = ""
-        for company in companies:
-            gap_pct = get_if_theoretical_open_is_bearish_gap_vs_yesterday_close(company, min_gap_pct=2.0)
-            if gap_pct is None:
-                continue
-            group_lines += f'<span style="font-size: 0.85em;">🏭 <b>{company}</b>: ↕️ {gap_pct:.2f}%</span>\n'
-
-        if group_lines:
-            gap_lines += f"<b>{idx_name}:</b>\n{group_lines}<br>"
-
-    if gap_lines:
-        report += gap_lines
-    else:
-        report += "<span style='font-size: 0.9em;'>Brak spółek spełniających warunek.</span><br>"
-
-    return report
-
-
 def main():
     start_utc, end_utc, start_pl, end_pl = window_prev_day_6am_pl()
     report = f"<b><span style='font-size: 1.25em;'>Newsy dla:\n📅{start_pl:%Y-%m-%d %H:%M} -\n📅{end_pl:%Y-%m-%d %H:%M}</span></b>\n\n"
@@ -138,8 +113,6 @@ def main():
         report = report + '━━━━━━━━━━━━━━━━━━━━━━━━━━━━<br><br>'
         for espi_link, title, time_str, company in espi_links:
             report = report + render_item(time_str, f"{company}: {title}", espi_link)
-
-    report += render_theoretical_open_gaps_section()
 
     if errors:
         report = report + "\n" + errors
