@@ -1,45 +1,95 @@
-from typing import Optional
+from __future__ import annotations
+
+import io
+from dataclasses import dataclass
 from datetime import datetime, timedelta
-from data import SWIG_80, MWIG_40, WIG_20
+from pathlib import Path
+from typing import Optional
 
 import pandas as pd
 import yfinance as yf
-from pathlib import Path
+
+from data import SWIG_80, MWIG_40, WIG_20
+
+DEFAULT_LOOKBACK_DAYS = 10
+SCALE_FIX_DIVISOR = 10000.0
+SCALE_FIX_RATIO_MIN = 0.5
+SCALE_FIX_RATIO_MAX = 2.0
 
 
-def load_tko() -> dict[str, float]:
-    today_str = datetime.today().strftime("%Y-%m-%d")
+@dataclass(frozen=True)
+class GapResult:
+    idx_name: str
+    ticker: str
+    gap_pct: float  # negative = bearish gap
+
+
+def _is_html_disguised_xls(raw: bytes) -> bool:
+    head = raw[:256].lstrip().lower()
+    return head.startswith(b"<html") or b"<table" in head
+
+
+def _flatten_columns(df: pd.DataFrame) -> pd.DataFrame:
+    out = df.copy()
+    if isinstance(out.columns, pd.MultiIndex):
+        out.columns = [
+            (
+                str(c[1]).strip()
+                if len(c) > 1 and str(c[1]).strip() and not str(c[1]).startswith("Unnamed")
+                else str(c[0]).strip()
+            )
+            for c in out.columns
+        ]
+    else:
+        out.columns = [str(c).strip() for c in out.columns]
+
+    out = out.loc[:, [c for c in out.columns if c and not str(c).startswith("Unnamed")]]
+    return out
+
+
+def _parse_tko(value: object) -> Optional[float]:
+    if value is None:
+        return None
+
+    s = str(value).strip()
+    if not s or s == "-":
+        return None
+
+    s = s.replace("\xa0", "").replace(" ", "")
+
+    # 1 234,56 / 1.234,56 / 1234.56
+    if "," in s:
+        s = s.replace(".", "")
+        s = s.replace(",", ".")
+
+    try:
+        x = float(s)
+    except ValueError:
+        return None
+
+    return x if x > 0 else None
+
+
+def load_tko(as_of: Optional[datetime] = None) -> dict[str, float]:
+    as_of = as_of or datetime.today()
+    today_str = as_of.strftime("%Y-%m-%d")
     xls_path = Path(__file__).resolve().parent / f"akcje_{today_str}.xls"
+
     if not xls_path.exists():
         raise FileNotFoundError(f"Nie znaleziono pliku: {xls_path}")
 
     raw = xls_path.read_bytes()
-    head = raw[:256].lstrip().lower()
-
-    # HTML udający XLS (jak w Twoim przykładzie)
-    if not (head.startswith(b"<html") or b"<table" in head):
+    if not _is_html_disguised_xls(raw):
         raise ValueError(f"Plik nie wygląda na HTML (a oczekiwany jest HTML): {xls_path}")
 
-    import io
     text = raw.decode("utf-8", errors="ignore")
     tables = pd.read_html(io.StringIO(text))
     if not tables:
         raise ValueError(f"Nie znaleziono żadnej tabeli HTML w pliku: {xls_path}")
 
-    # wybierz tabelę, która ma (po spłaszczeniu) kolumny Skrót i TKO
-    df = None
+    df: Optional[pd.DataFrame] = None
     for t in tables:
-        candidate = t.copy()
-        if isinstance(candidate.columns, pd.MultiIndex):
-            candidate.columns = [
-                (str(c[1]).strip() if len(c) > 1 and str(c[1]).strip() and not str(c[1]).startswith("Unnamed") else str(c[0]).strip())
-                for c in candidate.columns
-            ]
-        else:
-            candidate.columns = [str(c).strip() for c in candidate.columns]
-
-        candidate = candidate.loc[:, [c for c in candidate.columns if c and not c.startswith("Unnamed")]]
-
+        candidate = _flatten_columns(t)
         if {"Skrót", "TKO"}.issubset(set(candidate.columns)):
             df = candidate
             break
@@ -49,115 +99,117 @@ def load_tko() -> dict[str, float]:
 
     df = df.astype(str)
 
-    required = {"Skrót", "TKO"}
-    missing = required - set(df.columns)
-    if missing:
-        raise ValueError(f"Brak wymaganych kolumn w {xls_path.name}: {sorted(missing)}")
-
-    def parse_tko(v: str) -> Optional[float]:
-        if v is None:
-            return None
-        s = str(v).strip()
-        if not s or s == "-":
-            return None
-        s = s.replace("\xa0", "").replace(" ", "")
-
-        if "," in s:
-            s = s.replace(".", "")
-            s = s.replace(",", ".")
-
-        try:
-            x = float(s)
-            return x if x > 0 else None
-        except ValueError:
-            return None
-
     result: dict[str, float] = {}
     for _, row in df.iterrows():
         abbr = (row.get("Skrót") or "").strip()
-        tko = parse_tko(row.get("TKO"))
-        if not abbr or tko is None:
-            continue
-        result[abbr] = tko
+        tko = _parse_tko(row.get("TKO"))
+        if abbr and tko is not None:
+            result[abbr] = tko
 
     return result
+
+
+def _download_yesterday_close(company_abbr: str, lookback_days: int = DEFAULT_LOOKBACK_DAYS) -> Optional[float]:
+    end_date = datetime.today()
+    start_date = end_date - timedelta(days=lookback_days)
+
+    data = yf.download(
+        company_abbr + ".WA",
+        start=start_date,
+        end=end_date,
+        auto_adjust=False,
+        progress=False,
+        )
+    if data is None or data.empty:
+        return None
+
+    if isinstance(data.columns, pd.MultiIndex):
+        data = data.xs(company_abbr + ".WA", axis=1, level=-1)
+
+    data = data[["Close"]].dropna()
+    if data.empty:
+        return None
+
+    close = float(data.iloc[-1]["Close"])
+    return close if close > 0 else None
+
+
+def _normalize_theoretical_open(theoretical_open: float, yesterday_close: float) -> float:
+    ratio = theoretical_open / yesterday_close
+    if ratio > SCALE_FIX_RATIO_MAX or ratio < SCALE_FIX_RATIO_MIN:
+        return theoretical_open / SCALE_FIX_DIVISOR
+    return theoretical_open
+
+
+def _compute_gap_pct(theoretical_open: float, yesterday_close: float) -> float:
+    return ((theoretical_open / yesterday_close) - 1.0) * 100.0
 
 
 def get_if_theoretical_open_is_bearish_gap_vs_yesterday_close(
         company_abbr: str,
         tko_map: dict[str, float],
-        min_gap_pct: float = 1.0
-):
-    try:
-        end_date = datetime.today()
-        start_date = end_date - timedelta(days=10)  # bufor na weekendy/święta
-
-        data = yf.download(
-            company_abbr + ".WA",
-            start=start_date,
-            end=end_date,
-            auto_adjust=False,
-            progress=False
-        )
-        if data is None or data.empty:
-            return None
-
-        if isinstance(data.columns, pd.MultiIndex):
-            data = data.xs(company_abbr + ".WA", axis=1, level=-1)
-
-        data = data[["Close"]].dropna()
-        if data.empty:
-            return None
-
-        yesterday_close = float(data.iloc[-1]["Close"])
-        if yesterday_close <= 0:
-            return None
-
-        theoretical_open = tko_map.get(company_abbr)
-        if theoretical_open is None or theoretical_open <= 0:
-            return None
-
-        # Jeśli różnica > 100% (czyli theoretical_open jest <0.5x lub >2x yesterday_close),
-        # to najpewniej skala jest x10000 -> koryguj.
-        ratio = theoretical_open / yesterday_close
-        if ratio > 2.0 or ratio < 0.5:
-            theoretical_open = theoretical_open / 10000.0
-
-        gap_pct = ((theoretical_open / yesterday_close) - 1.0) * 100.0  # ujemne = luka w dół
-
-
-        print(f"{company_abbr}: {theoretical_open:.2f} - {yesterday_close:.2f} = {gap_pct:.2f}%")
-
-        if gap_pct <= -abs(min_gap_pct):
-            return gap_pct
-
-        return None
-    except Exception as ex:
-        print(f"Błąd przy pobieraniu danych dla {company_abbr}: {str(ex)}")
+        min_gap_pct: float = 1.0,
+) -> Optional[float]:
+    yesterday_close = _download_yesterday_close(company_abbr)
+    if yesterday_close is None:
         return None
 
+    theoretical_open = tko_map.get(company_abbr)
+    if theoretical_open is None or theoretical_open <= 0:
+        return None
 
-if __name__ == "__main__":
-    tko_map = load_tko()
+    theoretical_open = _normalize_theoretical_open(theoretical_open, yesterday_close)
+    gap_pct = _compute_gap_pct(theoretical_open, yesterday_close)  # negative = gap down
 
-    all_found: list[tuple[str, str, float]] = []  # (idx_name, ticker, gap_pct)
+    print(f"{company_abbr}: tko={theoretical_open:.2f} close={yesterday_close:.2f} gap={gap_pct:.2f}%")
 
+    if gap_pct <= -abs(min_gap_pct):
+        return gap_pct
+    return None
+
+
+def scan_indices_for_bearish_gaps(
+        tko_map: dict[str, float],
+        min_gap_pct: float = 2.0,
+) -> list[GapResult]:
+    results: list[GapResult] = []
     for idx_name, companies in [("SWIG80", SWIG_80), ("MWIG40", MWIG_40), ("WIG20", WIG_20)]:
-        print(f"\n{idx_name}:")
+        print(f"{idx_name}:")
         any_found = False
         for company in companies:
-            gap_pct = get_if_theoretical_open_is_bearish_gap_vs_yesterday_close(company, tko_map, min_gap_pct=2.0)
+            try:
+                gap_pct = get_if_theoretical_open_is_bearish_gap_vs_yesterday_close(company, tko_map, min_gap_pct)
+            except Exception as ex:
+                print(f"Błąd przy analizie {company}: {ex}")
+                continue
+
             if gap_pct is None:
                 continue
+
             any_found = True
-            all_found.append((idx_name, company, gap_pct))
+            results.append(GapResult(idx_name=idx_name, ticker=company, gap_pct=gap_pct))
             print(f"[LUKA ZNALEZIONA] {company}: {gap_pct:.2f}%")
+
         if not any_found:
             print("  Brak spółek spełniających warunek.")
 
+    return results
+
+
+def main() -> int:
+    tko_map = load_tko()
+    results = scan_indices_for_bearish_gaps(tko_map, min_gap_pct=2.0)
+
     print("\nPODSUMOWANIE (spółki z luką):")
-    if not all_found:
+    if not results:
         print("  Brak spółek spełniających warunek.")
-    else:
-        for _, company, gap_pct in sorted(all_found, key=lambda x: x[2]):
-            print(f"  {company} {gap_pct:.2f}%")
+        return 0
+
+    for r in sorted(results, key=lambda x: x.gap_pct):
+        print(f"  {r.ticker} {r.gap_pct:+.2f}%")
+
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())
