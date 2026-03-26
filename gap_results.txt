@@ -1,0 +1,101 @@
+PODSUMOWANIE (30 konfiguracji):
+ min_gap_pct rule                interval  trades  avg_return_pct  median_return_pct  win_rate_pct  gap_days  entry_signals  missing_daily_symbols  missing_intraday_days  skipped_intraday_too_old
+2.0          close_gt_prev_close 15m      122      0.607584       0.439907           57.377049     131       122            0                      1                      0
+2.0           close_gt_prev_high 15m      100      0.235791       0.036641           50.000000     129       100            3                      1                      0
+2.0          close_gt_prev_close  1m      117      1.075753       0.868370           68.376068     127       117            1                      8                      0
+2.0           close_gt_prev_high  1m      123      0.891217       0.740741           62.601626     131       123            0                      6                      0
+2.0          close_gt_prev_close  5m      123      0.877194       0.707545           61.788618     131       123            0                      2                      0
+2.0           close_gt_prev_high  5m      116      0.567208       0.205634           54.310345     128       116            2                      2                      0
+3.0          close_gt_prev_close 15m       38      1.332502       0.694599           68.421053      42        38            0                      0                      0
+3.0           close_gt_prev_high 15m       33      0.500746       0.346622           54.545455      42        33            0                      0                      0
+3.0          close_gt_prev_close  1m       40      1.549287       0.849910           70.000000      42        40            1                      1                      0
+3.0           close_gt_prev_high  1m       40      1.428977       0.691390           60.000000      42        40            0                      1                      0
+3.0          close_gt_prev_close  5m       41      1.230165       0.707545           63.414634      42        41            0                      0                      0
+3.0           close_gt_prev_high  5m       40      0.949168       0.279428           60.000000      42        40            0                      0                      0
+4.0          close_gt_prev_close 15m       16      0.919061       0.478760           62.500000      18        16            1                      0                      0
+4.0           close_gt_prev_high 15m       12      0.414776       0.442708           66.666667      18        12            0                      0                      0
+4.0          close_gt_prev_close  1m       17      1.350689       0.719427           64.705882      18        17            0                      0                      0
+4.0           close_gt_prev_high  1m       17      1.374042       0.719427           64.705882      18        17            0                      0                      0
+4.0          close_gt_prev_close  5m       17      0.909706       0.177624           52.941176      18        17            0                      0                      0
+4.0           close_gt_prev_high  5m       17      0.487847       0.177624           58.823529      18        17            0                      0                      0
+5.0          close_gt_prev_close 15m        6      2.008033       2.447858           66.666667       6         6            0                      0                      0
+5.0           close_gt_prev_high 15m        4      0.910708       3.047468           75.000000       6         4            0                      0                      0
+5.0          close_gt_prev_close  1m        6      2.005794       1.370170           83.333333       6         6            0                      0                      0
+5.0           close_gt_prev_high  1m        6      2.299975       1.344702           83.333333       6         6            0                      0                      0
+5.0          close_gt_prev_close  5m        6      1.581365       1.101838           66.666667       6         6            0                      0                      0
+5.0           close_gt_prev_high  5m        6      0.468335       1.101838           66.666667       6         6            0                      0                      0
+6.0          close_gt_prev_close 15m        4      1.683626       1.520680           50.000000       4         4            0                      0                      0
+6.0           close_gt_prev_high 15m        3     -0.267205       1.913509           66.666667       4         3            0                      0                      0
+6.0          close_gt_prev_close  1m        4      2.323606       2.275139           75.000000       4         4            0                      0                      0
+6.0           close_gt_prev_high  1m        4      2.809759       3.247445           75.000000       4         4            0                      0                      0
+6.0          close_gt_prev_close  5m        4      1.821129       2.193722           50.000000       4         4            1                      0                      0
+6.0           close_gt_prev_high  5m        4      0.151583       1.360543           50.000000       4         4            1                      0                      0
+
+TOP (trades>=5) wg avg_return_pct:
+ min_gap_pct rule                interval  trades  avg_return_pct  median_return_pct  win_rate_pct  gap_days  entry_signals  missing_daily_symbols  missing_intraday_days  skipped_intraday_too_old
+5.0           close_gt_prev_high  1m       6      2.299975        1.344702           83.333333      6         6             0                      0                      0
+5.0          close_gt_prev_close 15m       6      2.008033        2.447858           66.666667      6         6             0                      0                      0
+5.0          close_gt_prev_close  1m       6      2.005794        1.370170           83.333333      6         6             0                      0                      0
+5.0          close_gt_prev_close  5m       6      1.581365        1.101838           66.666667      6         6             0                      0                      0
+3.0          close_gt_prev_close  1m      40      1.549287        0.849910           70.000000     42        40             1                      1                      0
+3.0           close_gt_prev_high  1m      40      1.428977        0.691390           60.000000     42        40             0                      1                      0
+4.0           close_gt_prev_high  1m      17      1.374042        0.719427           64.705882     18        17             0                      0                      0
+4.0          close_gt_prev_close  1m      17      1.350689        0.719427           64.705882     18        17             0                      0                      0
+3.0          close_gt_prev_close 15m      38      1.332502        0.694599           68.421053     42        38             0                      0                      0
+3.0          close_gt_prev_close  5m      41      1.230165        0.707545           63.414634     42        41             0                      0                      0
+
+
+
+
+
+
+
+
+
+
+
+
+
+PODSUMOWANIE (30 konfiguracji):
+ min_gap_pct rule                interval  trades  avg_return_pct  median_return_pct  win_rate_pct  gap_days  entry_signals  missing_daily_symbols  missing_intraday_days  skipped_intraday_too_old
+4.0          close_gt_prev_close 15m      24      0.729330        0.350965           58.333333     26        24             0                      0                      19042
+4.0           close_gt_prev_high 15m      19      0.180425        0.233650           57.894737     26        19             1                      0                      18906
+4.0          close_gt_prev_close  5m      25      0.836098        0.468386           56.000000     26        25             0                      0                      19042
+4.0           close_gt_prev_high  5m      25      0.387759        0.177624           56.000000     26        25             0                      0                      19042
+5.0          close_gt_prev_close 15m      10      1.390903        1.286999           70.000000     10        10             0                      0                      19042
+5.0           close_gt_prev_high 15m       7      0.819456        1.859710           71.428571     10         7             0                      0                      19042
+5.0          close_gt_prev_close  5m      10      1.198114        0.525983           70.000000     10        10             0                      0                      19042
+5.0           close_gt_prev_high  5m      10      0.366250        0.525983           70.000000     10        10             0                      0                      19042
+6.0          close_gt_prev_close 15m       8      1.074417        1.046680           62.500000      8         8             0                      0                      19042
+6.0           close_gt_prev_high 15m       6      0.215291        1.046680           66.666667      8         6             0                      0                      19042
+6.0          close_gt_prev_close  5m       8      1.222183        0.525983           62.500000      8         8             0                      0                      19042
+6.0           close_gt_prev_high  5m       8      0.182354        0.525983           62.500000      8         8             0                      0                      19042
+
+TOP (trades>=5) wg avg_return_pct:
+ min_gap_pct rule                interval  trades  avg_return_pct  median_return_pct  win_rate_pct  gap_days  entry_signals  missing_daily_symbols  missing_intraday_days  skipped_intraday_too_old
+5.0          close_gt_prev_close 15m      10      1.390903        1.286999           70.000000     10        10             0                      0                      19042
+6.0          close_gt_prev_close  5m       8      1.222183        0.525983           62.500000      8         8             0                      0                      19042
+5.0          close_gt_prev_close  5m      10      1.198114        0.525983           70.000000     10        10             0                      0                      19042
+6.0          close_gt_prev_close 15m       8      1.074417        1.046680           62.500000      8         8             0                      0                      19042
+4.0          close_gt_prev_close  5m      25      0.836098        0.468386           56.000000     26        25             0                      0                      19042
+5.0           close_gt_prev_high 15m       7      0.819456        1.859710           71.428571     10         7             0                      0                      19042
+4.0          close_gt_prev_close 15m      24      0.729330        0.350965           58.333333     26        24             0                      0                      19042
+4.0           close_gt_prev_high  5m      25      0.387759        0.177624           56.000000     26        25             0                      0                      19042
+5.0           close_gt_prev_high  5m      10      0.366250        0.525983           70.000000     10        10             0                      0                      19042
+6.0           close_gt_prev_high 15m       6      0.215291        1.046680           66.666667      8         6             0                      0                      19042
+
+
+
+TOP (trades_eod>=5) wg avg_return_eod_pct:
+ min_gap_pct rule                interval  trades_eod  avg_return_eod_pct  median_return_eod_pct  win_rate_eod_pct  trades_trendexit  avg_return_trendexit_pct  median_return_trendexit_pct  win_rate_trendexit_pct  gap_days  entry_signals  trend_exit_signals  missing_trend_exit  missing_daily_symbols  missing_intraday_days  skipped_intraday_too_old
+5.0          close_gt_prev_close 15m      10          1.390903            1.286999               70.000000         10                 0.770691                 -0.191414                    30.000000               10        10             10                  0                   0                      0                      32950
+6.0          close_gt_prev_close  5m       8          1.222183            0.525983               62.500000          8                -0.589715                 -0.577304                    12.500000                8         8              8                  0                   1                      0                      32714
+5.0          close_gt_prev_close  5m      10          1.198114            0.525983               70.000000          9                -0.797547                 -0.727862                    11.111111               10        10              9                  1                   0                      0                      32950
+6.0          close_gt_prev_close 15m       8          1.074417            1.046680               62.500000          8                 0.907727                 -0.381898                    25.000000                8         8              8                  0                   0                      0                      32950
+4.0          close_gt_prev_close 15m      24          0.729330            0.350965               58.333333         21                 0.125590                 -0.281424                    23.809524               26        24             21                  3                   1                      0                      32714
+4.0          close_gt_prev_close  5m      24          0.708140            0.323005               54.166667         22                -0.785368                 -0.813538                    22.727273
+
+
+
+Najlepsze:
+5.0          close_gt_prev_close 15m

@@ -148,7 +148,7 @@ def _compute_gap_pct(theoretical_open: float, yesterday_close: float) -> float:
 def get_if_theoretical_open_is_bearish_gap_vs_yesterday_close(
         company_abbr: str,
         tko_map: dict[str, float],
-        min_gap_pct: float = 1.0,
+        min_gap_pct: float = 3.0,
 ) -> Optional[float]:
     yesterday_close = _download_yesterday_close(company_abbr)
     if yesterday_close is None:
