@@ -26,7 +26,7 @@ def load_tko() -> dict[str, float]:
     if not tables:
         raise ValueError(f"Nie znaleziono żadnej tabeli HTML w pliku: {xls_path}")
 
-    # wybierz tabelę, która ma (po spłaszczeniu) kolumny Skrót i Kurs otw.
+    # wybierz tabelę, która ma (po spłaszczeniu) kolumny Skrót i TKO
     df = None
     for t in tables:
         candidate = t.copy()
@@ -40,16 +40,16 @@ def load_tko() -> dict[str, float]:
 
         candidate = candidate.loc[:, [c for c in candidate.columns if c and not c.startswith("Unnamed")]]
 
-        if {"Skrót", "Kurs otw."}.issubset(set(candidate.columns)):
+        if {"Skrót", "TKO"}.issubset(set(candidate.columns)):
             df = candidate
             break
 
     if df is None:
-        raise ValueError(f"Nie znaleziono tabeli z kolumnami 'Skrót' i 'Kurs otw.' w pliku: {xls_path}")
+        raise ValueError(f"Nie znaleziono tabeli z kolumnami 'Skrót' i 'TKO' w pliku: {xls_path}")
 
     df = df.astype(str)
 
-    required = {"Skrót", "Kurs otw."}
+    required = {"Skrót", "TKO"}
     missing = required - set(df.columns)
     if missing:
         raise ValueError(f"Brak wymaganych kolumn w {xls_path.name}: {sorted(missing)}")
@@ -75,7 +75,7 @@ def load_tko() -> dict[str, float]:
     result: dict[str, float] = {}
     for _, row in df.iterrows():
         abbr = (row.get("Skrót") or "").strip()
-        tko = parse_tko(row.get("Kurs otw."))
+        tko = parse_tko(row.get("TKO"))
         if not abbr or tko is None:
             continue
         result[abbr] = tko

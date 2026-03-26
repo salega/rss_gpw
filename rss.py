@@ -6,6 +6,7 @@ from zoneinfo import ZoneInfo
 import feedparser
 
 from espi import get_espi_links_for_company
+from data import COMPANY_KEYWORDS
 from send_email import send_email
 
 PL_TZ = ZoneInfo("Europe/Warsaw")
