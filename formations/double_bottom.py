@@ -73,9 +73,10 @@ def find_double_bottoms(
         pivot_right: int = 3,
         min_days_between_bottoms: int = 10,
         max_days_between_bottoms: int = 120,
-        max_bottom_price_diff: float = 0.03,
+        max_bottom_price_diff: float = 0.05,
         min_neckline_rise: float = 0.06,
-        min_neckline_rise_from_higher_bottom: float = 0.04,
+        min_neckline_rise_from_higher_bottom: float = 0.06,
+        neckline_min_pos_ratio: float = 0.25,
         breakout_buffer_atr: float = 0.25,
         atr_period: int = 14,
         require_downtrend_before_l1: bool = True,
@@ -109,6 +110,12 @@ def find_double_bottoms(
 ) -> List[dict]:
     """
     Znajduje historyczne formacje podwójnego dna (W) w dostarczonych danych.
+
+    Dodatkowy filtr:
+    - neckline_min_pos_ratio: szyja (maksimum High pomiędzy L1 i L2) nie może wypadać zbyt blisko L1 ani L2.
+      Wymagamy, aby neckline była w przedziale:
+        [L1 + ratio*(L2-L1),  L2 - ratio*(L2-L1)]
+      Domyślnie ratio=0.25, czyli szyja musi wypaść w środkowych 50% rozpiętości formacji.
 
     Filtry jakości:
     1) forbid_close_below_bottoms_between:
@@ -216,7 +223,7 @@ def find_double_bottoms(
             if bottom_min <= 0:
                 continue
 
-            # Różnica dołków jako % niższego dołka; default 2% (podwójne dno ma być "równe")
+            # Różnica dołków jako % niższego dołka
             bottom_diff = (bottom_max - bottom_min) / bottom_min
             if bottom_diff > max_bottom_price_diff:
                 continue
@@ -228,7 +235,7 @@ def find_double_bottoms(
                 if len(between_closes) > 0 and float(between_closes.min()) < float(threshold):
                     continue
 
-            # 2) Między dołkami (z wyjątkiem X dni po L1 i Y dni przed L2) nie może być Close "na dołku"
+            # 2) Między dołkami nie może być Close "na dołku"
             if forbid_close_near_bottoms_between and (l2.idx > l1.idx + 1):
                 near_threshold = bottom_min * (1.0 + forbid_close_near_bottoms_max_above)
 
@@ -240,7 +247,7 @@ def find_double_bottoms(
                     if len(mid_closes) > 0 and float(mid_closes.min()) <= float(near_threshold):
                         continue
 
-            # 3) Między dołkami (z wyjątkiem X dni po L1 i Y dni przed L2) nie może być Low niżej niż dołki
+            # 3) Między dołkami nie może być Low niżej niż dołki
             if forbid_low_below_bottoms_between and (l2.idx > l1.idx + 1):
                 low_threshold = bottom_min * (1.0 - forbid_low_below_bottoms_tolerance)
 
@@ -252,7 +259,7 @@ def find_double_bottoms(
                     if len(mid_lows) > 0 and float(mid_lows.min()) < float(low_threshold):
                         continue
 
-            # 4) Między dołkami (z wyjątkiem X dni po L1 i Y dni przed L2) nie może być dodatkowego pivot-lowa
+            # 4) Między dołkami nie może być dodatkowego pivot-lowa
             if forbid_any_pivot_low_between:
                 start = l1.idx + 1 + max(0, pivot_low_between_exclude_days_after_l1)
                 end = l2.idx - max(0, pivot_low_between_exclude_days_before_l2)
@@ -265,11 +272,17 @@ def find_double_bottoms(
             if neckline <= 0:
                 continue
 
+            # Szyja (max pomiędzy dołkami) ma być w środkowej części rozpiętości L1-L2
+            span = l2.idx - l1.idx
+            if span > 0:
+                pos = (neckline_idx - l1.idx) / float(span)  # 0.0 przy L1, 1.0 przy L2
+                if pos < neckline_min_pos_ratio or pos > (1.0 - neckline_min_pos_ratio):
+                    continue
+
             rise = (neckline - bottom_min) / bottom_min
             if rise < min_neckline_rise:
                 continue
 
-            # szyja musi być co najmniej X% powyżej WYŻSZEGO dołka (żeby "W" nie było zbyt płaskie).
             higher_bottom = bottom_max
             rise_from_higher = (neckline - higher_bottom) / higher_bottom
             if rise_from_higher < min_neckline_rise_from_higher_bottom:
@@ -281,7 +294,6 @@ def find_double_bottoms(
             allowed_days_after_l2 = min(breakout_days_after_l2_max, allowed_days_after_l2)
             allowed_days_after_l2 = min(max_breakout_days_after_l2, allowed_days_after_l2)
 
-            # Szukamy pierwszego breakout po L2
             breakout_idx: Optional[int] = None
             breakout_close: Optional[float] = None
 
@@ -314,7 +326,6 @@ def find_double_bottoms(
                     if post_l2_min_low < threshold:
                         continue
 
-            # Prosty score: większe rise, mniejsza różnica dołków; kara za zbyt długi układ i późny breakout.
             length_penalty = (days_between / max_days_between_bottoms)
             breakout_delay = breakout_idx - l2.idx
             breakout_penalty = (breakout_delay / max(1, allowed_days_after_l2))
