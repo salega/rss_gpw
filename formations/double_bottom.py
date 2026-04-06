@@ -410,13 +410,11 @@ def check_double_bottom_breakout_today(
         return None
 
     best = max(todays, key=lambda x: x["score"])
-    l1 = best["l1_date"].strftime("%Y-%m-%d")
-    l2 = best["l2_date"].strftime("%Y-%m-%d")
-    today_str = today_ts.strftime("%Y-%m-%d")
+    l1 = best["l1_date"].strftime("%m-%d")
+    l2 = best["l2_date"].strftime("%m-%d")
     neckline = float(best["neckline"])
     target = float(best["target"])
 
-    company_prefix = f"{company_abbr} " if company_abbr else ""
-    result = f"🆆{company_prefix}{l1}/{l2} -> breakout {today_str} (neck={neckline:.2f}, target~{target:.2f})"
+    result = f"🆆{l1}/{l2} (neck={neckline:.2f}, target~{target:.2f})"
     print(result)
     return result

@@ -7,6 +7,7 @@ import pandas as pd
 import yfinance as yf
 
 from data import SWIG_80, MWIG_40, WIG_20
+from formations.double_bottom import check_double_bottom_breakout_today
 from formations.flag import check_flag_breakout_today
 from formations.flat_base import check_flat_base_breakout_today
 from formations.nr7 import check_nr7_confirmed_today
@@ -75,6 +76,7 @@ def calculate_potential(company_abbr: str):
     rectangle_breakout_today = check_rectangle_breakout_today(prices)
     flat_base_breakout_today = check_flat_base_breakout_today(prices)
     flag_breakout_today = check_flag_breakout_today(prices)
+    double_bottom_breakout_today = check_double_bottom_breakout_today(prices, company_abbr=company_abbr)
 
     return {
         "company": company_abbr,
@@ -89,7 +91,8 @@ def calculate_potential(company_abbr: str):
         "nr7": nr7,
         "rectangle_breakout_today": rectangle_breakout_today,
         "flat_base_breakout_today": flat_base_breakout_today,
-        "flag_breakout_today": flag_breakout_today
+        "flag_breakout_today": flag_breakout_today,
+        "double_bottom_breakout_today": double_bottom_breakout_today,
     }
 
 
@@ -109,6 +112,7 @@ def format_potential(potential):
     rectangle_breakout = build_row(potential.get("rectangle_breakout_today"))
     flat_base_breakout = build_row(potential.get("flat_base_breakout_today"))
     flag_breakout = build_row(potential.get("flag_breakout_today"))
+    double_bottom_breakout = build_row(potential.get("double_bottom_breakout_today"))
 
     formatted_entry = f"""\
 <div style="font-size: 0.88em; margin-top: 20px; padding: 0; line-height: 1.5;">
@@ -131,6 +135,7 @@ def format_potential(potential):
     {rectangle_breakout}
     {flat_base_breakout}
     {flag_breakout}
+    {double_bottom_breakout}
   </table>
 </div>"""
     return formatted_entry
@@ -140,7 +145,8 @@ def get_if_has_potential(company):
     potential = calculate_potential(company)
 
     if (potential and (potential["has_potential"] or potential["nr7"] or potential["rectangle_breakout_today"]
-                       or potential["flat_base_breakout_today"] or potential["flag_breakout_today"])):
+                       or potential["flat_base_breakout_today"] or potential["flag_breakout_today"]
+                       or potential["double_bottom_breakout_today"])):
         potential = format_potential(potential)
         return potential
     return ""
