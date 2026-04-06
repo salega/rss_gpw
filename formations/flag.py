@@ -6,7 +6,7 @@ import pandas as pd
 def check_flag_breakout_today(
         prices: Dict[pd.Timestamp, Dict[str, float]],
         pole_min_days: int = 3,
-        pole_max_days: int = 12,
+        pole_max_days: int = 20,
         pole_min_growth: float = 0.08,
         pole_max_daily_decline: float = 0.50,
         max_days_without_new_high: int = 2,
