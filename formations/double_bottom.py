@@ -73,7 +73,7 @@ def find_double_bottoms(
         pivot_right: int = 3,
         min_days_between_bottoms: int = 10,
         max_days_between_bottoms: int = 120,
-        max_bottom_price_diff: float = 0.05,
+        max_bottom_price_diff: float = 0.06,
         min_neckline_rise: float = 0.06,
         min_neckline_rise_from_higher_bottom: float = 0.06,
         neckline_min_pos_ratio: float = 0.25,
