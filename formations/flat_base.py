@@ -8,7 +8,8 @@ INCLUDE_BASE_BREAKOUT_DOWN = False
 def check_flat_base_breakout_today(
         prices: Dict[pd.Timestamp, Dict[str, float]],
         touch_tolerance_pct: float = 0.01,
-        min_touches_resistance: int = 3
+        min_touches_resistance: int = 3,
+        min_breakout_pct: float = 0.01
 ) -> Optional[str]:
     if not prices:
         return None
@@ -44,6 +45,7 @@ def check_flat_base_breakout_today(
             continue
 
         tol_abs = touch_tolerance_pct * resistance
+        breakout_abs = min_breakout_pct * resistance
         resistance_mask = window["Close"] >= (resistance - tol_abs)
 
         min_days_between_touches = max(1, length_days // 4)
@@ -51,9 +53,9 @@ def check_flat_base_breakout_today(
         if touches_resistance < min_touches_resistance:
             continue
 
-        if close_today > resistance:
+        if close_today > (resistance + breakout_abs):
             parts.append(f"💥(flat base) {length_days}⬆️ (R≈{resistance:.2f}, touches={touches_resistance})")
-        elif INCLUDE_BASE_BREAKOUT_DOWN and close_today < (resistance - tol_abs):
+        elif INCLUDE_BASE_BREAKOUT_DOWN and close_today < (resistance - breakout_abs):
             parts.append(f"💥(flat base) {length_days}⬇️ (R≈{resistance:.2f}, touches={touches_resistance})")
 
     return "   ".join(parts) if parts else None
