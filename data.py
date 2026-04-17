@@ -309,3 +309,5 @@ WIG_SECTOR_BY_TICKER = {
     "ACG": "WIG-MOTO",
     "WLT": "WIG-MOTO"
 }
+
+ALL = SWIG_80 + MWIG_40 + WIG_20
