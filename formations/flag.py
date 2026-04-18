@@ -1,6 +1,343 @@
+import pandas as pd
 from typing import Dict, Optional, List
 
-import pandas as pd
+
+def _prepare_flag_df(df: pd.DataFrame) -> pd.DataFrame:
+    required_cols = ["Close", "High", "Low"]
+    has_open = "Open" in df.columns
+
+    if not all(col in df.columns for col in required_cols):
+        return pd.DataFrame()
+
+    if has_open:
+        return df[["Open", "Close", "High", "Low"]].dropna().sort_index()
+
+    return df[["Close", "High", "Low"]].dropna().sort_index()
+
+
+def _build_signal(pole_start_date: pd.Timestamp, pole_peak_date: pd.Timestamp, max_price: float) -> str:
+    pole_start_str = pole_start_date.strftime("%Y-%m-%d")
+    pole_peak_str = pole_peak_date.strftime("%Y-%m-%d")
+    return f"🚩{pole_start_str} → {pole_peak_str} ({max_price:.2f})"
+
+
+def _get_candle_body_high_low(
+        has_open: bool,
+        open_price: Optional[float],
+        close_price: float,
+        prev_close: float,
+) -> tuple[float, float]:
+    if has_open and open_price is not None:
+        return max(open_price, close_price), min(open_price, close_price)
+
+    return max(prev_close, close_price), min(prev_close, close_price)
+
+
+def _find_pole_from_index(
+        working_df: pd.DataFrame,
+        start_idx: int,
+        pole_min_days: int,
+        pole_max_days: int,
+        pole_min_growth: float,
+        pole_max_daily_decline: float,
+        max_days_without_new_high: int,
+) -> Optional[dict]:
+    has_open = "Open" in working_df.columns
+    n = len(working_df)
+
+    if start_idx >= n - pole_min_days:
+        return None
+
+    if start_idx > 0:
+        first_close = float(working_df.iloc[start_idx]["Close"])
+        day_before_close = float(working_df.iloc[start_idx - 1]["Close"])
+        if first_close <= day_before_close:
+            return None
+
+    current_max = float(
+        working_df.iloc[start_idx]["Close"] if has_open else working_df.iloc[start_idx]["High"]
+    )
+    actual_pole_end_idx = start_idx
+    days_without_new_high = 0
+
+    closes: List[float] = []
+
+    max_end_idx = min(n - 1, start_idx + pole_max_days - 1)
+
+    for idx in range(start_idx, max_end_idx + 1):
+        row = working_df.iloc[idx]
+        current_close = float(row["Close"])
+        current_peak = float(row["Close"] if has_open else row["High"])
+        closes.append(current_close)
+
+        if current_peak > current_max:
+            current_max = current_peak
+            actual_pole_end_idx = idx
+            days_without_new_high = 0
+        else:
+            days_without_new_high += 1
+
+        local_i = idx - start_idx
+
+        if days_without_new_high > max_days_without_new_high:
+            break
+
+        if local_i > 0 and current_close < closes[local_i - 1]:
+            if local_i < 2:
+                return None
+
+            day_before_prev_close = closes[local_i - 2]
+            previous_close = closes[local_i - 1]
+            previous_day_gain = previous_close - day_before_prev_close
+
+            if previous_day_gain <= 0:
+                return None
+
+            decline = previous_close - current_close
+            max_allowed_decline = previous_day_gain * pole_max_daily_decline
+
+            if decline > max_allowed_decline:
+                return None
+
+    actual_pole_length = actual_pole_end_idx - start_idx + 1
+    if actual_pole_length < pole_min_days:
+        return None
+
+    pole_start_price = float(working_df.iloc[start_idx]["Close"])
+    pole_end_price = float(working_df.iloc[actual_pole_end_idx]["Close"])
+
+    if pole_start_price <= 0:
+        return None
+
+    pole_growth = (pole_end_price - pole_start_price) / pole_start_price
+    if pole_growth < pole_min_growth:
+        return None
+
+    max_price = current_max
+    pole_height = max_price - pole_start_price
+    if pole_height <= 0:
+        return None
+
+    return {
+        "pole_start_idx": start_idx,
+        "pole_end_idx": actual_pole_end_idx,
+        "pole_start_date": working_df.index[start_idx],
+        "pole_peak_date": working_df.index[actual_pole_end_idx],
+        "pole_start_price": float(pole_start_price),
+        "pole_end_price": float(pole_end_price),
+        "pole_growth": float(pole_growth),
+        "max_price": float(max_price),
+        "pole_height": float(pole_height),
+    }
+
+
+def _find_breakout_after_pole(
+        working_df: pd.DataFrame,
+        pole: dict,
+        flag_min_days: int,
+        flag_max_days_until_breakout: int,
+        flag_max_retracement: float,
+) -> Optional[dict]:
+    has_open = "Open" in working_df.columns
+    n = len(working_df)
+
+    pole_end_idx = int(pole["pole_end_idx"])
+    pole_start_price = float(pole["pole_start_price"])
+    max_price = float(pole["max_price"])
+    pole_height = float(pole["pole_height"])
+
+    half_pole = pole_start_price + (pole_height / 2.0)
+
+    flag_start_idx = pole_end_idx + 1
+    if flag_start_idx >= n:
+        return None
+
+    flag_candle_highs: List[float] = []
+    flag_candle_lows: List[float] = []
+
+    for idx in range(flag_start_idx, min(n, pole_end_idx + 1 + flag_max_days_until_breakout + 1)):
+        close_price = float(working_df.iloc[idx]["Close"])
+
+        if idx == flag_start_idx:
+            prev_close = float(working_df.iloc[pole_end_idx]["Close"])
+        else:
+            prev_close = float(working_df.iloc[idx - 1]["Close"])
+
+        open_price = float(working_df.iloc[idx]["Open"]) if has_open else None
+
+        candle_high, candle_low = _get_candle_body_high_low(
+            has_open=has_open,
+            open_price=open_price,
+            close_price=close_price,
+            prev_close=prev_close,
+        )
+
+        days_in_flag = idx - flag_start_idx + 1
+
+        if candle_high > max_price:
+            if days_in_flag < flag_min_days:
+                return None
+
+            flag_end_idx = idx - 1
+            breakout_idx = idx
+
+            if flag_end_idx < flag_start_idx:
+                return None
+
+            if len(flag_candle_lows) < flag_min_days:
+                return None
+
+            if any(h > max_price for h in flag_candle_highs):
+                return None
+
+            if any(low < half_pole for low in flag_candle_lows):
+                return None
+
+            flag_low = min(flag_candle_lows)
+            retracement = (max_price - flag_low) / pole_height
+            if retracement > flag_max_retracement:
+                return None
+
+            score = float(pole["pole_growth"]) * (1 - retracement) * (
+                    1 - len(flag_candle_lows) / flag_max_days_until_breakout
+            )
+
+            return {
+                **pole,
+                "flag_start_idx": flag_start_idx,
+                "flag_end_idx": flag_end_idx,
+                "breakout_idx": breakout_idx,
+                "breakout_date": working_df.index[breakout_idx],
+                "score": float(score),
+            }
+
+        flag_candle_highs.append(candle_high)
+        flag_candle_lows.append(candle_low)
+
+        if candle_low < half_pole:
+            return None
+
+        flag_low = min(flag_candle_lows)
+        retracement = (max_price - flag_low) / pole_height
+        if retracement > flag_max_retracement:
+            return None
+
+    return None
+
+
+def find_flag_breakouts_on_df(
+        df: pd.DataFrame,
+        pole_min_days: int = 3,
+        pole_max_days: int = 20,
+        pole_min_growth: float = 0.08,
+        pole_max_daily_decline: float = 0.50,
+        max_days_without_new_high: int = 2,
+        flag_min_days: int = 3,
+        flag_max_days_until_breakout: int = 20,
+        flag_max_retracement: float = 0.50,
+) -> List[dict]:
+    working_df = _prepare_flag_df(df)
+    if working_df.empty:
+        return []
+
+    min_required_len = pole_min_days + flag_min_days + 1
+    if len(working_df) < min_required_len:
+        return []
+
+    results: List[dict] = []
+    i = 0
+    n = len(working_df)
+
+    while i < n - min_required_len + 1:
+        pole = _find_pole_from_index(
+            working_df=working_df,
+            start_idx=i,
+            pole_min_days=pole_min_days,
+            pole_max_days=pole_max_days,
+            pole_min_growth=pole_min_growth,
+            pole_max_daily_decline=pole_max_daily_decline,
+            max_days_without_new_high=max_days_without_new_high,
+        )
+
+        if pole is None:
+            i += 1
+            continue
+
+        breakout = _find_breakout_after_pole(
+            working_df=working_df,
+            pole=pole,
+            flag_min_days=flag_min_days,
+            flag_max_days_until_breakout=flag_max_days_until_breakout,
+            flag_max_retracement=flag_max_retracement,
+        )
+
+        if breakout is None:
+            i += 1
+            continue
+
+        signal = _build_signal(
+            pole_start_date=breakout["pole_start_date"],
+            pole_peak_date=breakout["pole_peak_date"],
+            max_price=float(breakout["max_price"]),
+        )
+
+        results.append(
+            {
+                "date": breakout["breakout_date"],
+                "signal": signal,
+                "pole_start_date": breakout["pole_start_date"],
+                "pole_peak_date": breakout["pole_peak_date"],
+                "max_price": float(breakout["max_price"]),
+                "score": float(breakout["score"]),
+            }
+        )
+
+        i = int(breakout["breakout_idx"]) + 1
+
+    return results
+
+
+def _check_flag_breakout_on_df(
+        df: pd.DataFrame,
+        pole_min_days: int = 3,
+        pole_max_days: int = 20,
+        pole_min_growth: float = 0.08,
+        pole_max_daily_decline: float = 0.50,
+        max_days_without_new_high: int = 2,
+        flag_min_days: int = 3,
+        flag_max_days_until_breakout: int = 20,
+        flag_max_retracement: float = 0.50,
+        breakout_idx: Optional[int] = None,
+) -> Optional[str]:
+    working_df = _prepare_flag_df(df)
+    if working_df.empty:
+        return None
+
+    if breakout_idx is not None:
+        if breakout_idx < 0 or breakout_idx >= len(working_df):
+            return None
+        working_df = working_df.iloc[:breakout_idx + 1]
+
+    found = find_flag_breakouts_on_df(
+        df=working_df,
+        pole_min_days=pole_min_days,
+        pole_max_days=pole_max_days,
+        pole_min_growth=pole_min_growth,
+        pole_max_daily_decline=pole_max_daily_decline,
+        max_days_without_new_high=max_days_without_new_high,
+        flag_min_days=flag_min_days,
+        flag_max_days_until_breakout=flag_max_days_until_breakout,
+        flag_max_retracement=flag_max_retracement,
+    )
+
+    if not found:
+        return None
+
+    last_signal = found[-1]
+    if pd.Timestamp(last_signal["date"]) != working_df.index[-1]:
+        return None
+
+    return str(last_signal["signal"])
 
 
 def check_flag_breakout_today(
@@ -11,229 +348,21 @@ def check_flag_breakout_today(
         pole_max_daily_decline: float = 0.50,
         max_days_without_new_high: int = 2,
         flag_min_days: int = 3,
-        flag_max_days_until_breakout: int = 35,
+        flag_max_days_until_breakout: int = 20,
         flag_max_retracement: float = 0.50
 ) -> Optional[str]:
-    """
-    Wykrywa formację flagi, gdzie wybicie nastąpiło w OSTATNIEJ sesji (dzisiaj):
-
-    1. POLE (maszt): 3-12 dni wzrostu ≥8%, z dopuszczalnymi niewielkimi spadkami
-       (maksymalnie połowa wzrostu z poprzedniego dnia).
-       Maszt kończy się gdy MAX nie jest przebijany przez 2+ kolejne dni.
-       - Z Open: używamy Close do wykrywania maksimów
-       - Bez Open: używamy High do wykrywania maksimów
-    2. FLAG (flaga): 3-35 dni konsolidacji od końca masztu do WCZORAJ,
-       żaden zakres świecy (Open/Close lub aproksymacja) nie przekracza MAX
-       ani nie spada poniżej połowy wysokości masztu
-    3. BREAKOUT DZISIAJ: Close dzisiaj > MAX (wybicie w ostatniej sesji)
-    """
     if not prices:
         return None
 
-    df = pd.DataFrame.from_dict(prices, orient="index").dropna().sort_index()
-
-    required_cols = ["Close", "High", "Low"]
-    has_open = "Open" in df.columns
-
-    if not all(col in df.columns for col in required_cols):
-        return None
-
-    if has_open:
-        df = df[["Open", "Close", "High", "Low"]]
-    else:
-        df = df[["Close", "High", "Low"]]
-
-    # Minimalna długość: maszt + flaga + dzień wybicia
-    if len(df) < pole_min_days + flag_min_days + 1:
-        return None
-
-    # Maksymalny lookback to pole_max + flag_max + 1
-    lookback_days = pole_max_days + flag_max_days_until_breakout + 1
-    recent_df = df.iloc[-lookback_days:] if len(df) > lookback_days else df
-
-    # DZISIAJ to ostatni wiersz w recent_df
-    today_idx = len(recent_df) - 1
-    today_close = float(recent_df.iloc[today_idx]["Close"])
-
-    all_flags: List[Dict] = []
-
-    # Iterujemy po możliwych punktach startowych masztu
-    # Maszt musi zakończyć się co najmniej (flag_min_days + 1) dni przed dzisiaj
-    max_pole_start = today_idx - flag_min_days - pole_min_days
-
-    for pole_start_idx in range(max(0, max_pole_start - 100), max_pole_start + 1):
-
-        for initial_pole_length in range(pole_min_days,
-                                         min(pole_max_days + 1, today_idx - pole_start_idx - flag_min_days)):
-            pole_end_idx = pole_start_idx + initial_pole_length - 1
-            pole_window = recent_df.iloc[pole_start_idx:pole_end_idx + 1]
-
-            closes = pole_window["Close"].values
-
-            # Gdy brak Open, używamy High do wykrywania maksimów masztu
-            if has_open:
-                peaks = pole_window["Close"].values
-            else:
-                peaks = pole_window["High"].values
-
-            # Warunek: pierwszy dzień nie może spadać
-            if pole_start_idx > 0:
-                day_before_pole = float(recent_df.iloc[pole_start_idx - 1]["Close"])
-                first_close = float(closes[0])
-                if first_close <= day_before_pole:
-                    continue
-
-            # Walidacja masztu
-            valid_pole = True
-            current_max = float(peaks[0])
-            days_without_new_high = 0
-            actual_pole_end_idx = pole_start_idx
-
-            for i in range(len(closes)):
-                current_close = float(closes[i])
-                current_peak = float(peaks[i])
-
-                if current_peak > current_max:
-                    current_max = current_peak
-                    days_without_new_high = 0
-                    actual_pole_end_idx = pole_start_idx + i
-                else:
-                    days_without_new_high += 1
-
-                if days_without_new_high > max_days_without_new_high:
-                    break
-
-                # Sprawdzamy czy spadek Close jest dozwolony
-                if i > 0 and current_close < float(closes[i - 1]):
-                    if i < 2:
-                        valid_pole = False
-                        break
-
-                    day_before_prev_close = float(closes[i - 2])
-                    previous_close = float(closes[i - 1])
-                    previous_day_gain = previous_close - day_before_prev_close
-
-                    if previous_day_gain <= 0:
-                        valid_pole = False
-                        break
-
-                    decline = previous_close - current_close
-                    max_allowed_decline = previous_day_gain * pole_max_daily_decline
-
-                    if decline > max_allowed_decline:
-                        valid_pole = False
-                        break
-
-            if not valid_pole:
-                continue
-
-            actual_pole_length = actual_pole_end_idx - pole_start_idx + 1
-            if actual_pole_length < pole_min_days:
-                continue
-
-            actual_pole_window = recent_df.iloc[pole_start_idx:actual_pole_end_idx + 1]
-            actual_closes = actual_pole_window["Close"].values
-
-            pole_start_price = float(actual_closes[0])
-            pole_end_price = float(actual_closes[-1])
-
-            if pole_start_price <= 0:
-                continue
-
-            pole_growth = (pole_end_price - pole_start_price) / pole_start_price
-
-            if pole_growth < pole_min_growth:
-                continue
-
-            max_price = current_max
-            pole_height = max_price - pole_start_price
-
-            if pole_height <= 0:
-                continue
-
-            half_pole = pole_start_price + (pole_height / 2)
-
-            # Flaga zaczyna się po maszcie i kończy WCZORAJ (dzień przed dzisiaj)
-            flag_start_idx = actual_pole_end_idx + 1
-            flag_end_idx = today_idx - 1
-
-            # Sprawdzamy czy dzisiaj Close > MAX (wybicie DZISIAJ)
-            if today_close <= max_price:
-                continue
-
-            # Sprawdzamy długość flagi
-            flag_length = flag_end_idx - flag_start_idx + 1
-
-            if flag_length < flag_min_days:
-                continue
-
-            if flag_length > flag_max_days_until_breakout:
-                continue
-
-            flag_window = recent_df.iloc[flag_start_idx:flag_end_idx + 1]
-
-            # Walidacja konsolidacji
-            flag_candle_highs = []
-            flag_candle_lows = []
-
-            for idx in range(len(flag_window)):
-                row = flag_window.iloc[idx]
-
-                if has_open:
-                    open_price = float(row["Open"])
-                    close_price = float(row["Close"])
-                    candle_high = max(open_price, close_price)
-                    candle_low = min(open_price, close_price)
-                else:
-                    close_price = float(row["Close"])
-
-                    if idx == 0:
-                        prev_close = float(actual_pole_window.iloc[-1]["Close"])
-                    else:
-                        prev_close = float(flag_window.iloc[idx - 1]["Close"])
-
-                    candle_high = max(prev_close, close_price)
-                    candle_low = min(prev_close, close_price)
-
-                flag_candle_highs.append(candle_high)
-                flag_candle_lows.append(candle_low)
-
-            # Żaden zakres świecy nie przekracza MAX
-            if any(h > max_price for h in flag_candle_highs):
-                continue
-
-            # Żaden zakres świecy nie spada poniżej połowy masztu
-            if any(low < half_pole for low in flag_candle_lows):
-                continue
-
-            flag_low = min(flag_candle_lows)
-            retracement = (max_price - flag_low) / pole_height
-
-            if retracement > flag_max_retracement:
-                continue
-
-            # Mamy pełną formację z wybiciem DZISIAJ!
-            pole_start_date = recent_df.index[pole_start_idx]
-            pole_peak_date = recent_df.index[actual_pole_end_idx]
-
-            target_price = max_price + pole_height
-
-            score = pole_growth * (1 - retracement) * (1 - flag_length / flag_max_days_until_breakout)
-
-            all_flags.append({
-                "pole_start_date": pole_start_date,
-                "pole_peak_date": pole_peak_date,
-                "max_price": max_price,
-                "score": score
-            })
-
-    if not all_flags:
-        return None
-
-    # Wybieramy najlepszą formację
-    best = max(all_flags, key=lambda x: x["score"])
-
-    pole_start_str = best["pole_start_date"].strftime("%Y-%m-%d")
-    pole_peak_str = best["pole_peak_date"].strftime("%Y-%m-%d")
-
-    return f"🚩{pole_start_str} → {pole_peak_str} ({best['max_price']:.2f})"
+    df = pd.DataFrame.from_dict(prices, orient="index")
+    return _check_flag_breakout_on_df(
+        df=df,
+        pole_min_days=pole_min_days,
+        pole_max_days=pole_max_days,
+        pole_min_growth=pole_min_growth,
+        pole_max_daily_decline=pole_max_daily_decline,
+        max_days_without_new_high=max_days_without_new_high,
+        flag_min_days=flag_min_days,
+        flag_max_days_until_breakout=flag_max_days_until_breakout,
+        flag_max_retracement=flag_max_retracement,
+    )

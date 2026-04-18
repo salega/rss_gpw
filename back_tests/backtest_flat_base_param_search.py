@@ -75,10 +75,10 @@ def max_drawdown_next_n_days(df: pd.DataFrame, event_idx: int, n_days: int) -> f
 def build_param_sets() -> list[dict[str, Any]]:
     touch_tolerance_values = [0.005]
     min_touches_values = [3]
-    min_breakout_values = [0.01]
-    max_base_depth_values = [0.06, 0.08, 0.10]
+    min_breakout_values = [0.01, 0.0125, 0.015, 0.02, 0.03, 0.04]
+    max_base_depth_values = [0.08]
     use_low_for_depth_values = [False]
-    min_close_near_resistance_ratio_values = [0.8, 0.9, 1.0]
+    min_close_near_resistance_ratio_values = [0.9]
     near_resistance_pct_values = [0.04]
 
     param_sets: list[dict[str, Any]] = []
@@ -267,7 +267,7 @@ def print_top_configs(summary_df: pd.DataFrame) -> None:
 
 def main() -> None:
     end_date = datetime.today()
-    start_date = end_date - timedelta(days=365 * 2 + 60)
+    start_date = end_date - timedelta(days=365 * 5 + 60)
 
     print("Pobieranie danych tylko raz...")
     history_map: dict[str, pd.DataFrame] = {}
@@ -328,8 +328,8 @@ def main() -> None:
         details_df = details_df.sort_values(["config", "ticker", "date"]).reset_index(drop=True)
 
     timestamp = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
-    summary_path = f"/Users/pl8000269/IdeaProjects/rss_gpw/flat_base_param_search_summary_{timestamp}.csv"
-    details_path = f"/Users/pl8000269/IdeaProjects/rss_gpw/flat_base_param_search_details_{timestamp}.csv"
+    summary_path = f"/Users/pl8000269/IdeaProjects/rss_gpw/back_tests/reports/flat_base_param_search_summary_{timestamp}.csv"
+    details_path = f"/Users/pl8000269/IdeaProjects/rss_gpw/back_tests/reports/flat_base_param_search_details_{timestamp}.csv"
 
     summary_df.to_csv(summary_path, index=False)
     details_df.to_csv(details_path, index=False)
