@@ -59,14 +59,70 @@
             </Attribute>
           </value>
         </entry>
-        <entry key="/flat_base_param_search_details_2026-04-18_17-48-23.csv">
+        <entry key="/back_tests/reports/rectangle_param_search_details_2026-04-19_16-33-15.csv">
           <value>
             <Attribute>
               <option name="separator" value="," />
             </Attribute>
           </value>
         </entry>
-        <entry key="/flat_base_param_search_details_2026-04-18_23-20-41.csv">
+        <entry key="/back_tests/reports/rectangle_param_search_details_2026-04-19_17-12-38.csv">
+          <value>
+            <Attribute>
+              <option name="separator" value="," />
+            </Attribute>
+          </value>
+        </entry>
+        <entry key="/back_tests/reports/rectangle_param_search_details_2026-04-19_17-46-22.csv">
+          <value>
+            <Attribute>
+              <option name="separator" value="," />
+            </Attribute>
+          </value>
+        </entry>
+        <entry key="/back_tests/reports/rectangle_param_search_details_2026-04-19_18-15-47.csv">
+          <value>
+            <Attribute>
+              <option name="separator" value="," />
+            </Attribute>
+          </value>
+        </entry>
+        <entry key="/back_tests/reports/rectangle_param_search_details_2026-04-19_18-29-25.csv">
+          <value>
+            <Attribute>
+              <option name="separator" value="," />
+            </Attribute>
+          </value>
+        </entry>
+        <entry key="/back_tests/reports/rectangle_param_search_summary_2026-04-19_16-33-15.csv">
+          <value>
+            <Attribute>
+              <option name="separator" value="," />
+            </Attribute>
+          </value>
+        </entry>
+        <entry key="/back_tests/reports/rectangle_param_search_summary_2026-04-19_17-12-38.csv">
+          <value>
+            <Attribute>
+              <option name="separator" value="," />
+            </Attribute>
+          </value>
+        </entry>
+        <entry key="/back_tests/reports/rectangle_param_search_summary_2026-04-19_17-46-22.csv">
+          <value>
+            <Attribute>
+              <option name="separator" value="," />
+            </Attribute>
+          </value>
+        </entry>
+        <entry key="/back_tests/reports/rectangle_param_search_summary_2026-04-19_18-15-47.csv">
+          <value>
+            <Attribute>
+              <option name="separator" value="," />
+            </Attribute>
+          </value>
+        </entry>
+        <entry key="/back_tests/reports/rectangle_param_search_summary_2026-04-19_18-29-25.csv">
           <value>
             <Attribute>
               <option name="separator" value="," />
