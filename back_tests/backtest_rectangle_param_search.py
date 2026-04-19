@@ -15,11 +15,11 @@ from back_tests.backtest_rectangle import (
 
 def build_param_sets() -> list[dict[str, Any]]:
     touch_tolerance_of_height_values = [0.15]
-    min_touches_values = [2]
-    breakout_pct_values = [0.02]
-    max_height_pct_values = [0.15]
-    min_days_between_touches_ratio_values = [0.15]
-    length_days_values_list = [35, 50]
+    min_touches_values = [2, 3]
+    breakout_pct_values = [0.01, 0.015, 0.02]
+    max_height_pct_values = [0.15, 0.2]
+    min_days_between_touches_ratio_values = [0.15, 0.25]
+    length_days_values_list = [35, 50, 65]
 
     param_sets: list[dict[str, Any]] = []
 

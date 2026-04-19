@@ -11,14 +11,14 @@ from formations.double_bottom import check_double_bottom_breakout_today
 from formations.flag import check_flag_breakout_today
 from formations.flat_base import check_flat_base_breakout_today
 from formations.nr7 import check_nr7_confirmed_today
-from formations.rectangle import check_rectangle_breakout_today
+from formations.rectangle import check_rectangle_breakout_today_daily_scan
 from send_email import send_email
 from util import check_if_price_above_emas
 from util import get_max_value
 
 warnings.simplefilter(action='ignore', category=FutureWarning)
 INCLUDE_DOWN_NR7 = False
-DATE_TO_SIMULATE = None #datetime(2025, 7, 9)
+DATE_TO_SIMULATE = None #datetime(2025, 10, 3)
 
 
 def get_last_year_price_data(company_abbr: str):
@@ -73,7 +73,7 @@ def calculate_potential(company_abbr: str):
     has_potential = (max_40_percent_greater_than_local_min and is_at_least_one_ema_above and
                      today_between_10_and_50_percent_greater_than_local_min and today_higher_than_yesterday)
     nr7 = check_nr7_confirmed_today(prices)
-    rectangle_breakout_today = check_rectangle_breakout_today(prices)
+    rectangle_breakout_today = check_rectangle_breakout_today_daily_scan(prices)
     flat_base_breakout_today = check_flat_base_breakout_today(prices)
     flag_breakout_today = check_flag_breakout_today(prices)
     double_bottom_breakout_today = check_double_bottom_breakout_today(prices, company_abbr=company_abbr)
@@ -107,7 +107,15 @@ def format_potential(potential):
     def build_row(content):
         if not content:
             return ""
-        return f'<tr style="margin: 0; padding: 0;"><td colspan="3" style="padding: 0;">{content}</td></tr>'
+        rows = []
+        for line in str(content).splitlines():
+            if not line.strip():
+                continue
+            rows.append(
+                f'<tr style="margin: 0; padding: 0;"><td colspan="3" style="padding: 0;">{line}</td></tr>'
+            )
+
+        return "".join(rows)
 
     rectangle_breakout = build_row(potential.get("rectangle_breakout_today"))
     flat_base_breakout = build_row(potential.get("flat_base_breakout_today"))

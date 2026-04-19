@@ -51,8 +51,8 @@ def close_change_after_n_days(df: pd.DataFrame, event_idx: int, n_days: int) -> 
     return safe_pct_change(event_close, target_close)
 
 
-def max_gain_next_20_days(df: pd.DataFrame, event_idx: int) -> float | None:
-    future_window = df.iloc[event_idx + 1:event_idx + 21]
+def max_gain_next_n_days(df: pd.DataFrame, event_idx: int, n_days: int) -> float | None:
+    future_window = df.iloc[event_idx + 1:event_idx + 1 + n_days]
     if future_window.empty:
         return None
 
@@ -121,7 +121,9 @@ def backtest_rectangle_for_ticker(
                 "change_3d_pct": close_change_after_n_days(df, event_idx, 3),
                 "change_5d_pct": close_change_after_n_days(df, event_idx, 5),
                 "change_10d_pct": close_change_after_n_days(df, event_idx, 10),
-                "max_gain_20d_pct": max_gain_next_20_days(df, event_idx),
+                "change_40d_pct": close_change_after_n_days(df, event_idx, 40),
+                "max_gain_20d_pct": max_gain_next_n_days(df, event_idx, 20),
+                "max_gain_40d_pct": max_gain_next_n_days(df, event_idx, 40),
                 "max_drawdown_5d_pct": max_drawdown_next_n_days(df, event_idx, 5),
                 "max_drawdown_10d_pct": max_drawdown_next_n_days(df, event_idx, 10),
             }
@@ -139,7 +141,9 @@ def print_summary(results: pd.DataFrame) -> None:
         "change_3d_pct",
         "change_5d_pct",
         "change_10d_pct",
+        "change_40d_pct",
         "max_gain_20d_pct",
+        "max_gain_40d_pct",
         "max_drawdown_5d_pct",
         "max_drawdown_10d_pct",
     ]
