@@ -18,7 +18,7 @@ from util import get_max_value
 
 warnings.simplefilter(action='ignore', category=FutureWarning)
 INCLUDE_DOWN_NR7 = False
-DATE_TO_SIMULATE = None #datetime(2025, 10, 3)
+DATE_TO_SIMULATE = None #datetime(2055, 10, 3)
 
 
 def get_last_year_price_data(company_abbr: str):
