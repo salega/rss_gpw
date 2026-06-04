@@ -88,7 +88,7 @@ def _check_flat_base_breakout_on_df(
 
 def check_flat_base_breakout_today(
         prices: Dict[pd.Timestamp, Dict[str, float]],
-        touch_tolerance_pct: float = 0.005,
+        touch_tolerance_pct: float = 0.01,
         min_touches_resistance: int = 3,
         min_breakout_pct: float = 0.01,
         max_base_depth_pct: float = 0.08,

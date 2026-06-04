@@ -1,7 +1,9 @@
 from __future__ import annotations
 
+from concurrent.futures import ProcessPoolExecutor, as_completed
 from datetime import datetime, timedelta
 from itertools import product
+from os import cpu_count
 from typing import Any
 
 import pandas as pd
@@ -73,11 +75,11 @@ def max_drawdown_next_n_days(df: pd.DataFrame, event_idx: int, n_days: int) -> f
 
 
 def build_param_sets() -> list[dict[str, Any]]:
-    touch_tolerance_values = [0.005]
+    touch_tolerance_values = [0.006, 0.0075, 0.009, 0.01, 0.0125]
     min_touches_values = [3]
-    min_breakout_values = [0.01, 0.0125, 0.015, 0.02, 0.03, 0.04]
-    max_base_depth_values = [0.08]
-    use_low_for_depth_values = [False]
+    min_breakout_values = [0.01, 0.015]
+    max_base_depth_values = [0.08, 0.1]
+    use_low_for_depth_values = [False, True]
     min_close_near_resistance_ratio_values = [0.9]
     near_resistance_pct_values = [0.04]
 
@@ -265,6 +267,43 @@ def print_top_configs(summary_df: pd.DataFrame) -> None:
     print(filtered.sort_values("max_drawdown_10d_pct_avg", ascending=False)[cols].head(15).to_string(index=False))
 
 
+def _run_single_config(
+        args: tuple[dict[str, Any], dict[str, pd.DataFrame]],
+) -> tuple[dict[str, Any], list[dict[str, Any]], list[dict[str, Any]]]:
+    params, history_map = args
+    label = param_set_label(params)
+
+    config_rows: list[dict[str, Any]] = []
+    config_detail_rows: list[dict[str, Any]] = []
+
+    for ticker, df in history_map.items():
+        rows = backtest_flat_base_for_ticker(
+            ticker=ticker,
+            df=df,
+            params=params,
+        )
+
+        for row in rows:
+            config_detail_rows.append(
+                {
+                    "config": label,
+                    "touch_tolerance_pct": params["touch_tolerance_pct"],
+                    "min_touches_resistance": params["min_touches_resistance"],
+                    "min_breakout_pct": params["min_breakout_pct"],
+                    "max_base_depth_pct": params["max_base_depth_pct"],
+                    "use_low_for_depth": params["use_low_for_depth"],
+                    "min_close_near_resistance_ratio": params["min_close_near_resistance_ratio"],
+                    "near_resistance_pct": params["near_resistance_pct"],
+                    **row,
+                }
+            )
+
+        config_rows.extend(rows)
+
+    summary = summarize_results(pd.DataFrame(config_rows), params)
+    return summary, config_detail_rows, config_rows
+
+
 def main() -> None:
     end_date = datetime.today()
     start_date = end_date - timedelta(days=365 * 5 + 60)
@@ -286,36 +325,35 @@ def main() -> None:
     all_summary_rows: list[dict[str, Any]] = []
     all_detail_rows: list[dict[str, Any]] = []
 
-    for idx, params in enumerate(param_sets, start=1):
-        label = param_set_label(params)
-        print(f"[{idx}/{len(param_sets)}] Test konfiguracji: {label}")
+    workers_limit = max(1, (cpu_count() or 2) - 1)
+    max_workers = min(workers_limit, len(param_sets)) if param_sets else 1
 
-        config_rows: list[dict[str, Any]] = []
+    print(f"Uruchamianie równoległe dla konfiguracji: workers={max_workers}")
+    print()
 
-        for ticker, df in history_map.items():
-            rows = backtest_flat_base_for_ticker(
-                ticker=ticker,
-                df=df,
-                params=params,
+    with ProcessPoolExecutor(max_workers=max_workers) as executor:
+        futures = {
+            executor.submit(_run_single_config, (params, history_map)): (idx, params)
+            for idx, params in enumerate(param_sets, start=1)
+        }
+
+        for future in as_completed(futures):
+            idx, params = futures[future]
+            label = param_set_label(params)
+
+            try:
+                summary, detail_rows, config_rows = future.result()
+            except Exception as exc:
+                print(f"[{idx}/{len(param_sets)}] Błąd konfiguracji {label}: {exc}")
+                continue
+
+            all_summary_rows.append(summary)
+            all_detail_rows.extend(detail_rows)
+
+            print(
+                f"[{idx}/{len(param_sets)}] Zakończono: {label} | "
+                f"signals={len(config_rows)} | tickers={summary['tickers']}"
             )
-            for row in rows:
-                all_detail_rows.append(
-                    {
-                        "config": label,
-                        "touch_tolerance_pct": params["touch_tolerance_pct"],
-                        "min_touches_resistance": params["min_touches_resistance"],
-                        "min_breakout_pct": params["min_breakout_pct"],
-                        "max_base_depth_pct": params["max_base_depth_pct"],
-                        "use_low_for_depth": params["use_low_for_depth"],
-                        "min_close_near_resistance_ratio": params["min_close_near_resistance_ratio"],
-                        "near_resistance_pct": params["near_resistance_pct"],
-                        **row,
-                    }
-                )
-            config_rows.extend(rows)
-
-        results_df = pd.DataFrame(config_rows)
-        all_summary_rows.append(summarize_results(results_df, params))
 
     summary_df = pd.DataFrame(all_summary_rows).sort_values(
         ["change_5d_pct_avg", "change_10d_pct_avg", "max_gain_20d_pct_avg"],

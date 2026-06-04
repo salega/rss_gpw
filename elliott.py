@@ -89,9 +89,9 @@ def calculate_potential(company_abbr: str):
         "last_value": f"{last_value:.2f}",
         "penultimate_value": f"{penultimate_value:.2f}",
         "nr7": nr7,
-        "rectangle_breakout_today": rectangle_breakout_today,
-        "flat_base_breakout_today": flat_base_breakout_today,
-        "flag_breakout_today": flag_breakout_today,
+        "rectangle_breakout_today": rectangle_breakout_today, # back tested
+        "flat_base_breakout_today": flat_base_breakout_today, # back tested
+        "flag_breakout_today": flag_breakout_today, # back tested
         "double_bottom_breakout_today": double_bottom_breakout_today,
     }
 
@@ -152,7 +152,7 @@ def format_potential(potential):
 def get_if_has_potential(company):
     potential = calculate_potential(company)
 
-    if (potential and (potential["has_potential"] or potential["nr7"] or potential["rectangle_breakout_today"]
+    if (potential and (potential["rectangle_breakout_today"]
                        or potential["flat_base_breakout_today"] or potential["flag_breakout_today"]
                        or potential["double_bottom_breakout_today"])):
         potential = format_potential(potential)

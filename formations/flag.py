@@ -342,10 +342,10 @@ def _check_flag_breakout_on_df(
 
 def check_flag_breakout_today(
         prices: Dict[pd.Timestamp, Dict[str, float]],
-        pole_min_days: int = 3,
-        pole_max_days: int = 20,
-        pole_min_growth: float = 0.08,
-        pole_max_daily_decline: float = 0.50,
+        pole_min_days: int = 4,
+        pole_max_days: int = 15,
+        pole_min_growth: float = 0.06,
+        pole_max_daily_decline: float = 0.33,
         max_days_without_new_high: int = 2,
         flag_min_days: int = 3,
         flag_max_days_until_breakout: int = 20,
