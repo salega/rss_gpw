@@ -73,11 +73,11 @@ def find_double_bottoms(
         pivot_right: int = 3,
         min_days_between_bottoms: int = 10,
         max_days_between_bottoms: int = 120,
-        max_bottom_price_diff: float = 0.06,
+        max_bottom_price_diff: float = 0.03,
         min_neckline_rise: float = 0.06,
-        min_neckline_rise_from_higher_bottom: float = 0.06,
-        neckline_min_pos_ratio: float = 0.25,
-        breakout_buffer_atr: float = 0.25,
+        min_neckline_rise_from_higher_bottom: float = 0.05,
+        neckline_min_pos_ratio: float = 0.20,
+        breakout_buffer_atr: float = 0.10,
         atr_period: int = 14,
         require_downtrend_before_l1: bool = True,
         downtrend_ma_period: int = 50,
@@ -87,9 +87,10 @@ def find_double_bottoms(
         max_l1_close_vs_recent_high: float = 0.97,
         max_l1_close_vs_recent_avg: float = 0.98,
         max_breakout_days_after_l2: int = 60,
-        breakout_days_after_l2_ratio: float = 0.6,
+        breakout_days_after_l2_ratio: float = 0.45,
         breakout_days_after_l2_min: int = 5,
         breakout_days_after_l2_max: int = 40,
+        max_breakout_distance_above_neckline: float = 0.01,
         forbid_close_below_bottoms_between: bool = True,
         forbid_close_below_bottoms_tolerance: float = 0.0,
         forbid_close_near_bottoms_between: bool = True,
@@ -309,6 +310,10 @@ def find_double_bottoms(
                 buffer = (breakout_buffer_atr * atr_k) if atr_k > 0 else 0.0
 
                 if close_k > neckline + buffer:
+                    breakout_distance_above_neckline = (close_k - neckline) / neckline if neckline > 0 else 0.0
+                    if breakout_distance_above_neckline > max_breakout_distance_above_neckline:
+                        continue
+
                     breakout_idx = k
                     breakout_close = close_k
                     break
