@@ -151,17 +151,17 @@ def backtest_double_bottom_for_ticker(
 
 
 def build_param_sets() -> list[dict[str, Any]]:
-    # Finalny, lokalny tuning wokół najlepszego obszaru: 3 * 5 * 2 * 2 = 60 kombinacji.
+    # Lokalny tuning wokół najlepszego obszaru z raportu 2026-07-05_19-34-00: 96 kombinacji.
     pivot_left_values = [3]
     pivot_right_values = [3]
     min_days_between_bottoms_values = [10]
     max_days_between_bottoms_values = [120]
-    max_bottom_price_diff_values = [0.03]
-    min_neckline_rise_values = [0.06, 0.07, 0.08]
-    min_neckline_rise_from_higher_bottom_values = [0.05]
+    max_bottom_price_diff_values = [0.03, 0.04]
+    min_neckline_rise_values = [0.06, 0.07]
+    min_neckline_rise_from_higher_bottom_values = [0.05, 0.06]
     neckline_min_pos_ratio_values = [0.20]
     breakout_buffer_atr_values = [0.10]
-    breakout_days_after_l2_ratio_values = [0.40, 0.45, 0.50, 0.55, 0.60]
+    breakout_days_after_l2_ratio_values = [0.45, 0.50, 0.55]
     max_breakout_distance_above_neckline_values = [0.01]
     min_drop_into_l1_values = [0.05, 0.06]
     forbid_close_near_bottoms_max_above_values = [0.01, 0.012]
@@ -335,7 +335,7 @@ def print_top_configs(summary_df: pd.DataFrame, top_n: int = 10) -> None:
 
 def main() -> None:
     end_date = datetime.today()
-    start_date = end_date - timedelta(days=365 * 6 + 60)
+    start_date = end_date - timedelta(days=365 * 34 + 60)
 
     print("Pobieranie danych tylko raz...")
     history_map: dict[str, pd.DataFrame] = {}

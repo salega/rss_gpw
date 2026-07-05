@@ -124,12 +124,12 @@ def backtest_flag_for_ticker(
 def build_param_sets() -> list[dict[str, Any]]:
     pole_min_days_values = [4]
     pole_max_days_values = [15]
-    pole_min_growth_values = [0.06, 0.08]
-    pole_max_daily_decline_values = [0.33, 0.2]
+    pole_min_growth_values = [0.06]
+    pole_max_daily_decline_values = [0.33]
     max_days_without_new_high_values = [2]
     flag_min_days_values = [3]
-    flag_max_days_until_breakout_values = [20, 35]
-    flag_max_retracement_values = [0.33, 0.50]
+    flag_max_days_until_breakout_values = [20]
+    flag_max_retracement_values = [0.33]
 
     param_sets: list[dict[str, Any]] = []
 
@@ -242,7 +242,7 @@ def print_top_configs(summary_df: pd.DataFrame, top_n: int = 10) -> None:
 
 def main() -> None:
     end_date = datetime.today()
-    start_date = end_date - timedelta(days=365 * 6 + 60)
+    start_date = end_date - timedelta(days=365 * 34 + 60)
 
     print("Pobieranie danych tylko raz...")
     history_map: dict[str, pd.DataFrame] = {}

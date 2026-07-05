@@ -227,14 +227,14 @@ def _find_breakout_after_pole(
 
 def find_flag_breakouts_on_df(
         df: pd.DataFrame,
-        pole_min_days: int = 3,
-        pole_max_days: int = 20,
-        pole_min_growth: float = 0.08,
-        pole_max_daily_decline: float = 0.50,
+        pole_min_days: int = 4,
+        pole_max_days: int = 15,
+        pole_min_growth: float = 0.06,
+        pole_max_daily_decline: float = 0.33,
         max_days_without_new_high: int = 2,
         flag_min_days: int = 3,
         flag_max_days_until_breakout: int = 20,
-        flag_max_retracement: float = 0.50,
+        flag_max_retracement: float = 0.33,
 ) -> List[dict]:
     working_df = _prepare_flag_df(df)
     if working_df.empty:
@@ -299,14 +299,14 @@ def find_flag_breakouts_on_df(
 
 def _check_flag_breakout_on_df(
         df: pd.DataFrame,
-        pole_min_days: int = 3,
-        pole_max_days: int = 20,
-        pole_min_growth: float = 0.08,
-        pole_max_daily_decline: float = 0.50,
+        pole_min_days: int = 4,
+        pole_max_days: int = 15,
+        pole_min_growth: float = 0.06,
+        pole_max_daily_decline: float = 0.33,
         max_days_without_new_high: int = 2,
         flag_min_days: int = 3,
         flag_max_days_until_breakout: int = 20,
-        flag_max_retracement: float = 0.50,
+        flag_max_retracement: float = 0.33,
         breakout_idx: Optional[int] = None,
 ) -> Optional[str]:
     working_df = _prepare_flag_df(df)

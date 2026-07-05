@@ -306,7 +306,7 @@ def _run_single_config(
 
 def main() -> None:
     end_date = datetime.today()
-    start_date = end_date - timedelta(days=365 * 5 + 60)
+    start_date = end_date - timedelta(days=365 * 34 + 60)
 
     print("Pobieranie danych tylko raz...")
     history_map: dict[str, pd.DataFrame] = {}
