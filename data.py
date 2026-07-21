@@ -143,7 +143,7 @@ WIG_20 = [
     "PKN",
     "PKO",
     "PZU",
-    "SPL",
+    "EBP",
     "ZAB"
 ]
 
