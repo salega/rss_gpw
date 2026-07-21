@@ -46,6 +46,9 @@ def calculate_potential(company_abbr: str):
 
     close_prices = {dt: float(v["Close"]) for dt, v in prices.items() if v and "Close" in v and v["Close"] is not None}
 
+    if len(close_prices) < 2:
+        return None
+
     price_above_emas = check_if_price_above_emas(close_prices)
     max = get_max_value(close_prices)
     last = next(reversed(close_prices.items()))
