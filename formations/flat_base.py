@@ -1,4 +1,4 @@
-from typing import Dict, Optional
+from typing import Dict, Optional, List
 
 import pandas as pd
 
@@ -13,7 +13,8 @@ def _check_flat_base_breakout_on_df(
         max_base_depth_pct: float = 0.08,
         use_low_for_depth: bool = False,
         min_close_near_resistance_ratio: float = 0.9,
-        near_resistance_pct: float = 0.04
+        near_resistance_pct: float = 0.04,
+        base_length_days_list: Optional[List[int]] = None,
 ) -> Optional[str]:
     required_cols = {"Close"}
     if use_low_for_depth:
@@ -24,13 +25,20 @@ def _check_flat_base_breakout_on_df(
 
     selected_cols = ["Close", "Low"] if use_low_for_depth else ["Close"]
     df = df[selected_cols].dropna().sort_index()
-    if len(df) < 21:
+
+    length_days_candidates = base_length_days_list or (list(range(20, 91, 15)) + [180])
+    length_days_candidates = sorted({int(length_days) for length_days in length_days_candidates if int(length_days) > 0})
+    if not length_days_candidates:
+        return None
+
+    min_length_days = min(length_days_candidates)
+    if len(df) < min_length_days + 1:
         return None
 
     close_today = float(df.iloc[-1]["Close"])
     history = df.iloc[:-1]
 
-    if len(history) < 20:
+    if len(history) < min_length_days:
         return None
 
     def count_spaced_touches(mask: pd.Series, min_gap: int) -> int:
@@ -50,7 +58,7 @@ def _check_flat_base_breakout_on_df(
 
     parts: list[str] = []
 
-    for length_days in list(range(20, 91, 15)) + [180]:
+    for length_days in length_days_candidates:
         if len(history) < length_days:
             continue
 

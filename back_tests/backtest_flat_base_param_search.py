@@ -75,17 +75,19 @@ def max_drawdown_next_n_days(df: pd.DataFrame, event_idx: int, n_days: int) -> f
 
 
 def build_param_sets() -> list[dict[str, Any]]:
-    touch_tolerance_values = [0.006, 0.0075, 0.009, 0.01, 0.0125]
-    min_touches_values = [3]
-    min_breakout_values = [0.01, 0.015]
-    max_base_depth_values = [0.08, 0.1]
-    use_low_for_depth_values = [False, True]
-    min_close_near_resistance_ratio_values = [0.9]
-    near_resistance_pct_values = [0.04]
+    base_length_days_values = [10, 15, 20, 30]
+    touch_tolerance_values = [0.005]
+    min_touches_values = [3, 4]
+    min_breakout_values = [0.01]
+    max_base_depth_values = [0.03, 0.05]
+    use_low_for_depth_values = [False]
+    min_close_near_resistance_ratio_values = [0.85, 0.9]
+    near_resistance_pct_values = [0.02]
 
     param_sets: list[dict[str, Any]] = []
 
     for (
+            base_length_days,
             touch_tolerance_pct,
             min_touches_resistance,
             min_breakout_pct,
@@ -94,6 +96,7 @@ def build_param_sets() -> list[dict[str, Any]]:
             min_close_near_resistance_ratio,
             near_resistance_pct,
     ) in product(
+        base_length_days_values,
         touch_tolerance_values,
         min_touches_values,
         min_breakout_values,
@@ -104,6 +107,7 @@ def build_param_sets() -> list[dict[str, Any]]:
     ):
         param_sets.append(
             {
+                "base_length_days": base_length_days,
                 "touch_tolerance_pct": touch_tolerance_pct,
                 "min_touches_resistance": min_touches_resistance,
                 "min_breakout_pct": min_breakout_pct,
@@ -119,6 +123,7 @@ def build_param_sets() -> list[dict[str, Any]]:
 
 def param_set_label(params: dict[str, Any]) -> str:
     return (
+        f"base={params['base_length_days']}_"
         f"touch={params['touch_tolerance_pct']}_"
         f"touches={params['min_touches_resistance']}_"
         f"breakout={params['min_breakout_pct']}_"
@@ -153,6 +158,7 @@ def backtest_flat_base_for_ticker(
             use_low_for_depth=params["use_low_for_depth"],
             min_close_near_resistance_ratio=params["min_close_near_resistance_ratio"],
             near_resistance_pct=params["near_resistance_pct"],
+            base_length_days_list=[params["base_length_days"]],
         )
 
         has_signal = signal is not None
@@ -187,6 +193,7 @@ def backtest_flat_base_for_ticker(
 def summarize_results(results: pd.DataFrame, params: dict[str, Any]) -> dict[str, Any]:
     summary: dict[str, Any] = {
         "config": param_set_label(params),
+        "base_length_days": params["base_length_days"],
         "touch_tolerance_pct": params["touch_tolerance_pct"],
         "min_touches_resistance": params["min_touches_resistance"],
         "min_breakout_pct": params["min_breakout_pct"],
@@ -287,6 +294,7 @@ def _run_single_config(
             config_detail_rows.append(
                 {
                     "config": label,
+                    "base_length_days": params["base_length_days"],
                     "touch_tolerance_pct": params["touch_tolerance_pct"],
                     "min_touches_resistance": params["min_touches_resistance"],
                     "min_breakout_pct": params["min_breakout_pct"],
