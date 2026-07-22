@@ -7,13 +7,9 @@ INCLUDE_BASE_BREAKOUT_DOWN = False
 
 def _check_flat_base_breakout_on_df(
         df: pd.DataFrame,
-        touch_tolerance_pct: float = 0.005,
-        min_touches_resistance: int = 3,
         min_breakout_pct: float = 0.01,
-        max_base_depth_pct: float = 0.08,
+        max_center_deviation_pct: float = 0.03,
         use_low_for_depth: bool = False,
-        min_close_near_resistance_ratio: float = 0.9,
-        near_resistance_pct: float = 0.04,
         base_length_days_list: Optional[List[int]] = None,
 ) -> Optional[str]:
     required_cols = {"Close"}
@@ -41,21 +37,6 @@ def _check_flat_base_breakout_on_df(
     if len(history) < min_length_days:
         return None
 
-    def count_spaced_touches(mask: pd.Series, min_gap: int) -> int:
-        idx_positions = [i for i, is_touch in enumerate(mask.tolist()) if bool(is_touch)]
-        if not idx_positions:
-            return 0
-
-        count = 1
-        last_pos = idx_positions[0]
-
-        for pos in idx_positions[1:]:
-            if (pos - last_pos) >= min_gap:
-                count += 1
-                last_pos = pos
-
-        return count
-
     parts: list[str] = []
 
     for length_days in length_days_candidates:
@@ -63,46 +44,38 @@ def _check_flat_base_breakout_on_df(
             continue
 
         window = history.iloc[-length_days:]
-        resistance = float(window["Close"].max())
-        if resistance <= 0:
+        center_value = float(window["Close"].median())
+        if center_value <= 0:
             continue
 
-        base_low = float(window["Low"].min()) if use_low_for_depth else float(window["Close"].min())
-        base_depth_pct = (resistance - base_low) / resistance
-        if base_depth_pct > max_base_depth_pct:
+        upper_reference = float(window["High"].max()) if use_low_for_depth and "High" in window.columns else float(window["Close"].max())
+        lower_reference = float(window["Low"].min()) if use_low_for_depth else float(window["Close"].min())
+
+        upper_deviation_pct = (upper_reference - center_value) / center_value
+        lower_deviation_pct = (center_value - lower_reference) / center_value
+        max_observed_deviation_pct = max(upper_deviation_pct, lower_deviation_pct)
+        if max_observed_deviation_pct > max_center_deviation_pct:
             continue
 
-        near_resistance_level = resistance * (1.0 - near_resistance_pct)
-        close_near_resistance_ratio = float((window["Close"] >= near_resistance_level).mean())
-        if close_near_resistance_ratio < min_close_near_resistance_ratio:
-            continue
+        breakout_level = upper_reference * (1.0 + min_breakout_pct)
 
-        tol_abs = touch_tolerance_pct * resistance
-        breakout_abs = min_breakout_pct * resistance
-        resistance_mask = window["Close"] >= (resistance - tol_abs)
-
-        min_days_between_touches = max(1, length_days // 4)
-        touches_resistance = count_spaced_touches(resistance_mask, min_days_between_touches)
-        if touches_resistance < min_touches_resistance:
-            continue
-
-        if close_today > (resistance + breakout_abs):
-            parts.append(f"💥(flat base) {length_days}⬆️ (R≈{resistance:.2f}, touches={touches_resistance})")
-        elif INCLUDE_BASE_BREAKOUT_DOWN and close_today < (resistance - breakout_abs):
-            parts.append(f"💥(flat base) {length_days}⬇️ (R≈{resistance:.2f}, touches={touches_resistance})")
+        if close_today > breakout_level:
+            parts.append(
+                f"💥(flat base) {length_days}⬆️ (X≈{center_value:.2f}, dev≈{max_observed_deviation_pct * 100:.1f}%)"
+            )
+        elif INCLUDE_BASE_BREAKOUT_DOWN and close_today < (lower_reference * (1.0 - min_breakout_pct)):
+            parts.append(
+                f"💥(flat base) {length_days}⬇️ (X≈{center_value:.2f}, dev≈{max_observed_deviation_pct * 100:.1f}%)"
+            )
 
     return "   ".join(parts) if parts else None
 
 
 def check_flat_base_breakout_today(
         prices: Dict[pd.Timestamp, Dict[str, float]],
-        touch_tolerance_pct: float = 0.01,
-        min_touches_resistance: int = 3,
         min_breakout_pct: float = 0.01,
-        max_base_depth_pct: float = 0.08,
-        use_low_for_depth: bool = False,
-        min_close_near_resistance_ratio: float = 0.9,
-        near_resistance_pct: float = 0.04
+        max_center_deviation_pct: float = 0.02,
+        use_low_for_depth: bool = True
 ) -> Optional[str]:
     if not prices:
         return None
@@ -110,11 +83,8 @@ def check_flat_base_breakout_today(
     df = pd.DataFrame.from_dict(prices, orient="index").sort_index()
     return _check_flat_base_breakout_on_df(
         df=df,
-        touch_tolerance_pct=touch_tolerance_pct,
-        min_touches_resistance=min_touches_resistance,
         min_breakout_pct=min_breakout_pct,
-        max_base_depth_pct=max_base_depth_pct,
+        max_center_deviation_pct=max_center_deviation_pct,
         use_low_for_depth=use_low_for_depth,
-        min_close_near_resistance_ratio=min_close_near_resistance_ratio,
-        near_resistance_pct=near_resistance_pct
+        base_length_days_list=[20],
     )

@@ -54,8 +54,8 @@ def close_change_after_n_days(df: pd.DataFrame, event_idx: int, n_days: int) -> 
     return safe_pct_change(event_close, target_close)
 
 
-def max_gain_next_20_days(df: pd.DataFrame, event_idx: int) -> float | None:
-    future_window = df.iloc[event_idx + 1:event_idx + 21]
+def max_gain_next_n_days(df: pd.DataFrame, event_idx: int, n_days: int) -> float | None:
+    future_window = df.iloc[event_idx + 1:event_idx + 1 + n_days]
     if future_window.empty:
         return None
 
@@ -75,46 +75,30 @@ def max_drawdown_next_n_days(df: pd.DataFrame, event_idx: int, n_days: int) -> f
 
 
 def build_param_sets() -> list[dict[str, Any]]:
-    base_length_days_values = [10, 15, 20, 30]
-    touch_tolerance_values = [0.005]
-    min_touches_values = [3, 4]
-    min_breakout_values = [0.01]
-    max_base_depth_values = [0.03, 0.05]
-    use_low_for_depth_values = [False]
-    min_close_near_resistance_ratio_values = [0.85, 0.9]
-    near_resistance_pct_values = [0.02]
+    base_length_days_values = [10, 20, 30, 40]
+    min_breakout_values = [0.005, 0.01, 0.025]
+    max_center_deviation_values = [0.02, 0.03]
+    use_low_for_depth_values = [False, True]
 
     param_sets: list[dict[str, Any]] = []
 
     for (
             base_length_days,
-            touch_tolerance_pct,
-            min_touches_resistance,
             min_breakout_pct,
-            max_base_depth_pct,
+            max_center_deviation_pct,
             use_low_for_depth,
-            min_close_near_resistance_ratio,
-            near_resistance_pct,
     ) in product(
         base_length_days_values,
-        touch_tolerance_values,
-        min_touches_values,
         min_breakout_values,
-        max_base_depth_values,
+        max_center_deviation_values,
         use_low_for_depth_values,
-        min_close_near_resistance_ratio_values,
-        near_resistance_pct_values,
     ):
         param_sets.append(
             {
                 "base_length_days": base_length_days,
-                "touch_tolerance_pct": touch_tolerance_pct,
-                "min_touches_resistance": min_touches_resistance,
                 "min_breakout_pct": min_breakout_pct,
-                "max_base_depth_pct": max_base_depth_pct,
+                "max_center_deviation_pct": max_center_deviation_pct,
                 "use_low_for_depth": use_low_for_depth,
-                "min_close_near_resistance_ratio": min_close_near_resistance_ratio,
-                "near_resistance_pct": near_resistance_pct,
             }
         )
 
@@ -124,13 +108,9 @@ def build_param_sets() -> list[dict[str, Any]]:
 def param_set_label(params: dict[str, Any]) -> str:
     return (
         f"base={params['base_length_days']}_"
-        f"touch={params['touch_tolerance_pct']}_"
-        f"touches={params['min_touches_resistance']}_"
         f"breakout={params['min_breakout_pct']}_"
-        f"depth={params['max_base_depth_pct']}_"
-        f"low={int(params['use_low_for_depth'])}_"
-        f"near_ratio={params['min_close_near_resistance_ratio']}_"
-        f"near_pct={params['near_resistance_pct']}"
+        f"center_dev={params['max_center_deviation_pct']}_"
+        f"low={int(params['use_low_for_depth'])}"
     )
 
 
@@ -151,13 +131,9 @@ def backtest_flat_base_for_ticker(
 
         signal = _check_flat_base_breakout_on_df(
             df=history_until_event,
-            touch_tolerance_pct=params["touch_tolerance_pct"],
-            min_touches_resistance=params["min_touches_resistance"],
             min_breakout_pct=params["min_breakout_pct"],
-            max_base_depth_pct=params["max_base_depth_pct"],
+            max_center_deviation_pct=params["max_center_deviation_pct"],
             use_low_for_depth=params["use_low_for_depth"],
-            min_close_near_resistance_ratio=params["min_close_near_resistance_ratio"],
-            near_resistance_pct=params["near_resistance_pct"],
             base_length_days_list=[params["base_length_days"]],
         )
 
@@ -181,7 +157,9 @@ def backtest_flat_base_for_ticker(
                 "change_3d_pct": close_change_after_n_days(df, event_idx, 3),
                 "change_5d_pct": close_change_after_n_days(df, event_idx, 5),
                 "change_10d_pct": close_change_after_n_days(df, event_idx, 10),
-                "max_gain_20d_pct": max_gain_next_20_days(df, event_idx),
+                "change_20d_pct": close_change_after_n_days(df, event_idx, 20),
+                "max_gain_10d_pct": max_gain_next_n_days(df, event_idx, 10),
+                "max_gain_20d_pct": max_gain_next_n_days(df, event_idx, 20),
                 "max_drawdown_5d_pct": max_drawdown_next_n_days(df, event_idx, 5),
                 "max_drawdown_10d_pct": max_drawdown_next_n_days(df, event_idx, 10),
             }
@@ -194,13 +172,9 @@ def summarize_results(results: pd.DataFrame, params: dict[str, Any]) -> dict[str
     summary: dict[str, Any] = {
         "config": param_set_label(params),
         "base_length_days": params["base_length_days"],
-        "touch_tolerance_pct": params["touch_tolerance_pct"],
-        "min_touches_resistance": params["min_touches_resistance"],
         "min_breakout_pct": params["min_breakout_pct"],
-        "max_base_depth_pct": params["max_base_depth_pct"],
+        "max_center_deviation_pct": params["max_center_deviation_pct"],
         "use_low_for_depth": params["use_low_for_depth"],
-        "min_close_near_resistance_ratio": params["min_close_near_resistance_ratio"],
-        "near_resistance_pct": params["near_resistance_pct"],
         "trades": len(results),
         "tickers": int(results["ticker"].nunique()) if not results.empty else 0,
     }
@@ -209,6 +183,8 @@ def summarize_results(results: pd.DataFrame, params: dict[str, Any]) -> dict[str
         "change_3d_pct",
         "change_5d_pct",
         "change_10d_pct",
+        "change_20d_pct",
+        "max_gain_10d_pct",
         "max_gain_20d_pct",
         "max_drawdown_5d_pct",
         "max_drawdown_10d_pct",
@@ -248,6 +224,10 @@ def print_top_configs(summary_df: pd.DataFrame) -> None:
         "change_10d_pct_avg",
         "change_10d_pct_median",
         "change_10d_pct_win_rate",
+        "change_20d_pct_avg",
+        "change_20d_pct_median",
+        "change_20d_pct_win_rate",
+        "max_gain_10d_pct_avg",
         "max_gain_20d_pct_avg",
         "max_drawdown_5d_pct_avg",
         "max_drawdown_10d_pct_avg",
@@ -260,6 +240,14 @@ def print_top_configs(summary_df: pd.DataFrame) -> None:
     print()
     print("TOP konfiguracje wg change_10d_pct_avg:")
     print(filtered.sort_values("change_10d_pct_avg", ascending=False)[cols].head(15).to_string(index=False))
+
+    print()
+    print("TOP konfiguracje wg change_20d_pct_avg:")
+    print(filtered.sort_values("change_20d_pct_avg", ascending=False)[cols].head(15).to_string(index=False))
+
+    print()
+    print("TOP konfiguracje wg max_gain_10d_pct_avg:")
+    print(filtered.sort_values("max_gain_10d_pct_avg", ascending=False)[cols].head(15).to_string(index=False))
 
     print()
     print("TOP konfiguracje wg max_gain_20d_pct_avg:")
@@ -295,13 +283,9 @@ def _run_single_config(
                 {
                     "config": label,
                     "base_length_days": params["base_length_days"],
-                    "touch_tolerance_pct": params["touch_tolerance_pct"],
-                    "min_touches_resistance": params["min_touches_resistance"],
                     "min_breakout_pct": params["min_breakout_pct"],
-                    "max_base_depth_pct": params["max_base_depth_pct"],
+                    "max_center_deviation_pct": params["max_center_deviation_pct"],
                     "use_low_for_depth": params["use_low_for_depth"],
-                    "min_close_near_resistance_ratio": params["min_close_near_resistance_ratio"],
-                    "near_resistance_pct": params["near_resistance_pct"],
                     **row,
                 }
             )
@@ -364,7 +348,7 @@ def main() -> None:
             )
 
     summary_df = pd.DataFrame(all_summary_rows).sort_values(
-        ["change_5d_pct_avg", "change_10d_pct_avg", "max_gain_20d_pct_avg"],
+        ["change_10d_pct_avg", "change_20d_pct_avg", "max_gain_10d_pct_avg", "max_gain_20d_pct_avg"],
         ascending=False,
         na_position="last",
     ).reset_index(drop=True)
