@@ -75,9 +75,9 @@ def max_drawdown_next_n_days(df: pd.DataFrame, event_idx: int, n_days: int) -> f
 
 
 def build_param_sets() -> list[dict[str, Any]]:
-    base_length_days_values = [10, 20, 30, 40]
+    base_length_days_values = [20, 30, 40]
     min_breakout_values = [0.005, 0.01, 0.025]
-    max_center_deviation_values = [0.02, 0.03]
+    max_center_deviation_values = [0.01, 0.02, 0.03]
     use_low_for_depth_values = [False, True]
 
     param_sets: list[dict[str, Any]] = []
