@@ -158,6 +158,7 @@ def backtest_flat_base_for_ticker(
                 "change_5d_pct": close_change_after_n_days(df, event_idx, 5),
                 "change_10d_pct": close_change_after_n_days(df, event_idx, 10),
                 "change_20d_pct": close_change_after_n_days(df, event_idx, 20),
+                "change_50d_pct": close_change_after_n_days(df, event_idx, 50),
                 "max_gain_10d_pct": max_gain_next_n_days(df, event_idx, 10),
                 "max_gain_20d_pct": max_gain_next_n_days(df, event_idx, 20),
                 "max_drawdown_5d_pct": max_drawdown_next_n_days(df, event_idx, 5),
@@ -184,6 +185,7 @@ def summarize_results(results: pd.DataFrame, params: dict[str, Any]) -> dict[str
         "change_5d_pct",
         "change_10d_pct",
         "change_20d_pct",
+        "change_50d_pct",
         "max_gain_10d_pct",
         "max_gain_20d_pct",
         "max_drawdown_5d_pct",
@@ -227,6 +229,9 @@ def print_top_configs(summary_df: pd.DataFrame) -> None:
         "change_20d_pct_avg",
         "change_20d_pct_median",
         "change_20d_pct_win_rate",
+        "change_50d_pct_avg",
+        "change_50d_pct_median",
+        "change_50d_pct_win_rate",
         "max_gain_10d_pct_avg",
         "max_gain_20d_pct_avg",
         "max_drawdown_5d_pct_avg",
@@ -244,6 +249,10 @@ def print_top_configs(summary_df: pd.DataFrame) -> None:
     print()
     print("TOP konfiguracje wg change_20d_pct_avg:")
     print(filtered.sort_values("change_20d_pct_avg", ascending=False)[cols].head(15).to_string(index=False))
+
+    print()
+    print("TOP konfiguracje wg change_50d_pct_avg:")
+    print(filtered.sort_values("change_50d_pct_avg", ascending=False)[cols].head(15).to_string(index=False))
 
     print()
     print("TOP konfiguracje wg max_gain_10d_pct_avg:")
@@ -348,7 +357,7 @@ def main() -> None:
             )
 
     summary_df = pd.DataFrame(all_summary_rows).sort_values(
-        ["change_10d_pct_avg", "change_20d_pct_avg", "max_gain_10d_pct_avg", "max_gain_20d_pct_avg"],
+        ["change_10d_pct_avg", "change_20d_pct_avg", "change_50d_pct_avg", "max_gain_10d_pct_avg", "max_gain_20d_pct_avg"],
         ascending=False,
         na_position="last",
     ).reset_index(drop=True)
