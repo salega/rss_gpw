@@ -71,17 +71,55 @@ def max_drawdown_next_n_days(df: pd.DataFrame, event_idx: int, n_days: int) -> f
     return safe_pct_change(event_close, min_low)
 
 
+def gain_to_ultimate_high(df: pd.DataFrame, event_idx: int, drawdown_threshold: float = 0.20) -> float | None:
+    """Bulkowski: zasięg od ceny wybicia do ostatecznego wierzchołka,
+    po którym kurs spada o co najmniej drawdown_threshold (domyślnie 20%)."""
+    entry_close = float(df.iloc[event_idx]["Close"])
+    future = df.iloc[event_idx + 1:]
+    if future.empty:
+        return None
+
+    peak_price = entry_close
+    for i in range(len(future)):
+        high = float(future.iloc[i]["High"])
+        if high > peak_price:
+            peak_price = high
+
+        # sprawdź czy po tym szczycie nastąpił spadek ≥20%
+        subsequent = future.iloc[i + 1:]
+        if subsequent.empty:
+            break
+        min_subsequent_low = float(subsequent["Low"].min())
+        if peak_price > 0 and (peak_price - min_subsequent_low) / peak_price >= drawdown_threshold:
+            return safe_pct_change(entry_close, peak_price)
+
+    # szczyt nie został potwierdzony (brak danych przyszłych) – zwróć None
+    return None
+
+
+def stop_loss_hit(df: pd.DataFrame, event_idx: int, flag_low: float) -> bool:
+    """Bulkowski: stop 1 grosz poniżej minimum flagi."""
+    stop_price = flag_low - 0.01
+    future = df.iloc[event_idx + 1:]
+    if future.empty:
+        return False
+    return bool((future["Low"] < stop_price).any())
+
+
 def backtest_flag_for_ticker(
         ticker: str,
         df: pd.DataFrame,
-        pole_min_days: int = 3,
-        pole_max_days: int = 20,
-        pole_min_growth: float = 0.08,
-        pole_max_daily_decline: float = 0.50,
+        # Bulkowski WWF: maszt ≥90% w ≤40 sesjach
+        pole_min_days: int = 4,
+        pole_max_days: int = 40,
+        pole_min_growth: float = 0.90,
+        pole_max_daily_decline: float = 0.33,
         max_days_without_new_high: int = 2,
-        flag_min_days: int = 3,
-        flag_max_days_until_breakout: int = 35,
-        flag_max_retracement: float = 0.50,
+        # Bulkowski: flaga 5–19 dni
+        flag_min_days: int = 5,
+        flag_max_days_until_breakout: int = 19,
+        require_volume_decline: bool = True,
+        require_dense_flag: bool = False,
 ) -> list[dict[str, Any]]:
     rows: list[dict[str, Any]] = []
 
@@ -104,7 +142,8 @@ def backtest_flag_for_ticker(
             max_days_without_new_high=max_days_without_new_high,
             flag_min_days=flag_min_days,
             flag_max_days_until_breakout=flag_max_days_until_breakout,
-            flag_max_retracement=flag_max_retracement,
+            require_volume_decline=require_volume_decline,
+            require_dense_flag=require_dense_flag,
         )
 
         has_signal = signal is not None
@@ -118,18 +157,42 @@ def backtest_flag_for_ticker(
 
         previous_had_signal = True
 
+        event_close = float(df.iloc[event_idx]["Close"])
+
+        # Pobierz flag_low z ostatniego sygnału (potrzebne do stop-lossa)
+        # Szukamy flag_low w pełnych wynikach find_flag_breakouts_on_df
+        from formations.flag import find_flag_breakouts_on_df
+        full_results = find_flag_breakouts_on_df(
+            df=history_until_event,
+            pole_min_days=pole_min_days,
+            pole_max_days=pole_max_days,
+            pole_min_growth=pole_min_growth,
+            pole_max_daily_decline=pole_max_daily_decline,
+            max_days_without_new_high=max_days_without_new_high,
+            flag_min_days=flag_min_days,
+            flag_max_days_until_breakout=flag_max_days_until_breakout,
+            require_volume_decline=require_volume_decline,
+            require_dense_flag=require_dense_flag,
+        )
+        flag_low = full_results[-1]["flag_low"] if full_results else None
+
         rows.append(
             {
                 "ticker": ticker,
                 "date": df.index[event_idx],
-                "close_event": float(df.iloc[event_idx]["Close"]),
+                "close_event": event_close,
                 "signal": signal,
-                "change_3d_pct": close_change_after_n_days(df, event_idx, 3),
+                # Bulkowski: zysk do ostatecznego wierzchołka (spadek ≥20%)
+                "gain_to_ultimate_high_pct": gain_to_ultimate_high(df, event_idx, drawdown_threshold=0.20),
+                # Pomocnicze okna (do porównań)
                 "change_5d_pct": close_change_after_n_days(df, event_idx, 5),
                 "change_10d_pct": close_change_after_n_days(df, event_idx, 10),
+                "change_20d_pct": close_change_after_n_days(df, event_idx, 20),
                 "max_gain_20d_pct": max_gain_next_20_days(df, event_idx),
-                "max_drawdown_5d_pct": max_drawdown_next_n_days(df, event_idx, 5),
                 "max_drawdown_10d_pct": max_drawdown_next_n_days(df, event_idx, 10),
+                # Bulkowski: czy stop-loss (1 grosz pod minimum flagi) został trafiony?
+                "stop_loss_hit": stop_loss_hit(df, event_idx, flag_low) if flag_low is not None else None,
+                "flag_low": flag_low,
             }
         )
 
@@ -145,16 +208,19 @@ def print_summary(results: pd.DataFrame) -> None:
     print(f"Liczba spółek z breakoutami: {results['ticker'].nunique()}")
     print()
 
+    # Bulkowski: główna metryka – zysk do ostatecznego wierzchołka
     metrics = [
-        "change_3d_pct",
+        "gain_to_ultimate_high_pct",  # Bulkowski: kluczowa metryka
         "change_5d_pct",
         "change_10d_pct",
+        "change_20d_pct",
         "max_gain_20d_pct",
-        "max_drawdown_5d_pct",
         "max_drawdown_10d_pct",
     ]
 
     for col in metrics:
+        if col not in results.columns:
+            continue
         series = results[col].dropna()
         if series.empty:
             print(f"{col}: brak danych")
@@ -162,44 +228,51 @@ def print_summary(results: pd.DataFrame) -> None:
 
         positive_count = int((series > 0).sum())
         negative_count = int((series < 0).sum())
-        zero_count = int((series == 0).sum())
 
         print(
             f"{col}: "
-            f"avg={series.mean():.4f}% | "
-            f"median={series.median():.6f}% | "
+            f"avg={series.mean():.2f}% | "
+            f"median={series.median():.2f}% | "
             f"win_rate={(series > 0).mean() * 100:.1f}% | "
-            f"pos={positive_count} | neg={negative_count} | zero={zero_count}"
+            f"pos={positive_count} | neg={negative_count}"
         )
-
-        around_zero = series.loc[series.abs().sort_values().index].head(10).tolist()
-        print(f"  najbliżej zera: {[round(x, 6) for x in around_zero]}")
         print()
+
+    # Bulkowski: stop-loss statystyki
+    if "stop_loss_hit" in results.columns:
+        sl = results["stop_loss_hit"].dropna()
+        if not sl.empty:
+            hit_rate = sl.mean() * 100
+            print(f"Stop-loss (pod min. flagi) trafiony: {hit_rate:.1f}% transakcji")
+            print()
 
     print("Lista breakoutów:")
     for _, row in results.iterrows():
         date_str = pd.Timestamp(row["date"]).strftime("%Y-%m-%d")
 
-        def fmt(value: float | None) -> str:
-            if pd.isna(value):
+        def fmt(value: Any) -> str:
+            if value is None or (isinstance(value, float) and pd.isna(value)):
                 return "n/a"
             return f"{float(value):.2f}%"
 
+        sl_str = "SL:TAK" if row.get("stop_loss_hit") else "SL:NIE"
         print(
             f"{row['ticker']} | {date_str} | close={row['close_event']:.2f} | "
-            f"3d={fmt(row['change_3d_pct'])} | "
-            f"5d={fmt(row['change_5d_pct'])} | "
-            f"10d={fmt(row['change_10d_pct'])} | "
-            f"max20d={fmt(row['max_gain_20d_pct'])} | "
-            f"dd5={fmt(row['max_drawdown_5d_pct'])} | "
-            f"dd10={fmt(row['max_drawdown_10d_pct'])} | "
+            f"ultimate={fmt(row.get('gain_to_ultimate_high_pct'))} | "
+            f"5d={fmt(row.get('change_5d_pct'))} | "
+            f"10d={fmt(row.get('change_10d_pct'))} | "
+            f"20d={fmt(row.get('change_20d_pct'))} | "
+            f"max20d={fmt(row.get('max_gain_20d_pct'))} | "
+            f"dd10={fmt(row.get('max_drawdown_10d_pct'))} | "
+            f"{sl_str} | "
             f"{row['signal']}"
         )
 
 
 def main() -> None:
     end_date = datetime.today()
-    start_date = end_date - timedelta(days=365 * 2 + 60)
+    # Bulkowski używał danych wieloletnich; bierzemy 5 lat żeby mieć szansę złapać ≥90% wzrosty
+    start_date = end_date - timedelta(days=365 * 5)
 
     all_rows: list[dict[str, Any]] = []
 
@@ -212,14 +285,16 @@ def main() -> None:
         rows = backtest_flag_for_ticker(
             ticker=ticker,
             df=df,
-            pole_min_days=3,
-            pole_max_days=20,
-            pole_min_growth=0.08,
-            pole_max_daily_decline=0.50,
+            # Bulkowski WWF
+            pole_min_days=4,
+            pole_max_days=40,        # 2 miesiące sesyjne
+            pole_min_growth=0.90,    # ≥90% wzrostu
+            pole_max_daily_decline=0.33,
             max_days_without_new_high=2,
-            flag_min_days=3,
-            flag_max_days_until_breakout=35,
-            flag_max_retracement=0.50,
+            flag_min_days=5,
+            flag_max_days_until_breakout=19,  # Bulkowski: max 19 dni
+            require_volume_decline=True,       # Bulkowski: wolumen maleje w fladze
+            require_dense_flag=False,          # ustaw True dla wyższej jakości (53% vs 40%)
         )
         all_rows.extend(rows)
 
@@ -231,7 +306,7 @@ def main() -> None:
     results = results.sort_values(["ticker", "date"]).reset_index(drop=True)
 
     timestamp = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
-    output_path = f"/Users/pl8000269/IdeaProjects/rss_gpw/flag_backtest_results_{timestamp}.csv"
+    output_path = f"/Users/pl8000269/IdeaProjects/rss_gpw/back_tests/reports/flag_backtest_bulkowski_{timestamp}.csv"
     results.to_csv(output_path, index=False)
 
     print()

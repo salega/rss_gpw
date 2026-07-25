@@ -76,9 +76,9 @@ def max_drawdown_next_n_days(df: pd.DataFrame, event_idx: int, n_days: int) -> f
 
 def build_param_sets() -> list[dict[str, Any]]:
     base_length_days_values = [20, 30, 40]
-    min_breakout_values = [0.005, 0.01, 0.025]
-    max_center_deviation_values = [0.01, 0.02, 0.03]
-    use_low_for_depth_values = [False, True]
+    min_breakout_values = [0.01, 0.025]
+    max_center_deviation_values = [0.01, 0.02]
+    use_low_for_depth_values = [True]
 
     param_sets: list[dict[str, Any]] = []
 
@@ -306,8 +306,13 @@ def _run_single_config(
 
 
 def main() -> None:
-    end_date = datetime.today()
-    start_date = end_date - timedelta(days=365 * 34 + 60)
+    # end_date = datetime.today()
+    # start_date = end_date - timedelta(days=365 * 34 + 60)
+
+
+    start_date = datetime(2013, 1, 1)
+    end_date = datetime(2026, 5, 1)
+
 
     print("Pobieranie danych tylko raz...")
     history_map: dict[str, pd.DataFrame] = {}
