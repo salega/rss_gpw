@@ -93,32 +93,32 @@ def _find_pole_from_index(
     if start_idx >= n - pole_min_days:
         return None
 
-    if start_idx > 0:
-        first_close = float(working_df.iloc[start_idx]["Close"])
-        day_before_close = float(working_df.iloc[start_idx - 1]["Close"])
-        if first_close <= day_before_close:
-            return None
+    # Punkt 2: brak wymogu wzrostowego dnia startowego — Bulkowski nie narzucał tego warunku
 
-    pole_start_close = float(working_df.iloc[start_idx]["Close"])
-    if pole_start_close <= 0:
+    # Punkt 2: minimalny kurs $1 — Bulkowski wykluczał akcje poniżej $1
+    pole_start_low = float(working_df.iloc[start_idx]["Low"])
+    if pole_start_low < 1.0:
         return None
 
     max_end_idx = min(n - 1, start_idx + pole_max_days - 1)
 
-    # Bulkowski: maszt = okno w którym kurs prawie się podwaja.
-    # Szukamy najwyższego High w oknie i sprawdzamy czy wzrost ≥ pole_min_growth.
-    # Jedyny warunek odrzucający w trakcie: głęboka korekta (sygnał że trend się skończył).
+    # Punkt 1 (Bulkowski): wzrost masztu liczony od najniższego Low do najwyższego High
+    current_min_low = pole_start_low   # najniższy Low w oknie masztu
     current_max = float(working_df.iloc[start_idx]["High"])
     actual_pole_end_idx = start_idx
     closes: List[float] = []
-
     days_without_new_high = 0
 
     for idx in range(start_idx, max_end_idx + 1):
         row = working_df.iloc[idx]
         current_close = float(row["Close"])
         current_high = float(row["High"])
+        current_low = float(row["Low"])
         closes.append(current_close)
+
+        # aktualizuj najniższy Low (punkt startowy wzrostu wg Bulkowskiego)
+        if current_low < current_min_low:
+            current_min_low = current_low
 
         if current_high > current_max:
             current_max = current_high
@@ -127,32 +127,33 @@ def _find_pole_from_index(
         else:
             days_without_new_high += 1
 
-        # Bulkowski: maszt to impulsowy wzrost — kończy się gdy momentum ustaje.
-        # Zatrzymaj maszt po max_days_without_new_high dniach bez nowego High.
+        # Bulkowski: maszt kończy się gdy brak nowego High przez N dni.
+        # Po osiągnięciu 90% wzrostu pozwalamy kontynuować — Bulkowski:
+        # "I allowed it to continue rising if it made a higher high"
         if days_without_new_high >= max_days_without_new_high:
             break
 
-        # Odrzuć maszt jeśli Close spada poniżej startu (wzrost wyzerowany)
-        if current_close < pole_start_close:
+        # Odrzuć jeśli Close spada poniżej Low startu (wzrost wyzerowany)
+        if current_close < float(working_df.iloc[start_idx]["Low"]):
             return None
 
     actual_pole_length = actual_pole_end_idx - start_idx + 1
     if actual_pole_length < pole_min_days:
         return None
 
-    pole_start_price = float(working_df.iloc[start_idx]["Close"])
-    pole_end_price = float(working_df.iloc[actual_pole_end_idx]["Close"])
-
-    if pole_start_price <= 0:
+    if current_min_low <= 0:
         return None
 
-    # Bulkowski: wzrost masztu liczony od Close startu do High szczytu
-    max_price = current_max  # = High dnia szczytu
-    pole_growth = (max_price - pole_start_price) / pole_start_price
+    # Punkt 1: wzrost = (najwyższy High - najniższy Low) / najniższy Low
+    max_price = current_max
+    pole_growth = (max_price - current_min_low) / current_min_low
     if pole_growth < pole_min_growth:
         return None
 
-    pole_height = max_price - pole_start_price
+    # pole_start_price = Close pierwszego dnia (do obliczenia wysokości flagi)
+    pole_start_price = float(working_df.iloc[start_idx]["Close"])
+    pole_end_price = float(working_df.iloc[actual_pole_end_idx]["Close"])
+    pole_height = max_price - current_min_low
     if pole_height <= 0:
         return None
 
@@ -162,6 +163,7 @@ def _find_pole_from_index(
         "pole_start_date": working_df.index[start_idx],
         "pole_peak_date": working_df.index[actual_pole_end_idx],
         "pole_start_price": float(pole_start_price),
+        "pole_min_low": float(current_min_low),   # Bulkowski: dno masztu (Low)
         "pole_end_price": float(pole_end_price),
         "pole_growth": float(pole_growth),
         "max_price": float(max_price),
@@ -184,8 +186,11 @@ def _find_breakout_after_pole(
     pole_start_price = float(pole["pole_start_price"])
     max_price = float(pole["max_price"])
     pole_height = float(pole["pole_height"])
+    pole_min_low = float(pole.get("pole_min_low", pole_start_price))
 
-    half_pole = pole_start_price + (pole_height / 2.0)
+    # Bulkowski: flaga nie może spaść poniżej połowy masztu
+    # połowa masztu = dno masztu + 50% wysokości
+    half_pole = pole_min_low + (pole_height / 2.0)
 
     flag_start_idx = pole_end_idx + 1
     if flag_start_idx >= n:
@@ -193,6 +198,7 @@ def _find_breakout_after_pole(
 
     flag_candle_highs: List[float] = []
     flag_candle_lows: List[float] = []
+    flag_closes: List[float] = []  # Bulkowski: "low posted in the flag" = najniższy Close
 
     for idx in range(flag_start_idx, min(n, pole_end_idx + 1 + flag_max_days_until_breakout + 1)):
         close_price = float(working_df.iloc[idx]["Close"])
@@ -214,13 +220,12 @@ def _find_breakout_after_pole(
             high_price=high_price,
             low_price=low_price,
         )
-
         days_in_flag = idx - flag_start_idx + 1
 
         flag_high_so_far = max(flag_candle_highs) if flag_candle_highs else 0.0
 
-        # Bulkowski: wybicie = Close powyżej najwyższego szczytu flagi (nie szczytu masztu)
-        if close_price > flag_high_so_far and flag_high_so_far > 0 and days_in_flag > 1:
+        # Punkt 6 (Bulkowski blog): wybicie = Close o 1 grosz powyżej szczytu MASZTU
+        if close_price > max_price and days_in_flag > 1:
             if days_in_flag < flag_min_days:
                 return None
 
@@ -240,13 +245,13 @@ def _find_breakout_after_pole(
             if any(low < half_pole for low in flag_candle_lows):
                 return None
 
+            # flag_low = najniższy intraday Low w fladze (absolute lowest price)
             flag_low = min(flag_candle_lows)
-            retracement = (max_price - flag_low) / pole_height
+            retracement = (max_price - flag_low) / pole_height if pole_height > 0 else 0
 
-            # Bulkowski: cofnięcie 0–25% wysokości masztu
-            # (IIIN miał ~0-7%, więc nie wymuszamy minimum 10%)
-            if retracement > 0.25:
-                return None
+            # Bulkowski nie definiuje twardego limitu cofnięcia jako kryterium wykluczającego
+            # (10-34% daje najlepsze wyniki wg jego badań, ale to obserwacja, nie filtr)
+            # Jedyne ograniczenie: flaga nie może spaść poniżej połowy masztu (half_pole) — już sprawdzone wyżej
 
             # Bulkowski: wolumen powinien maleć podczas flagi
             if require_volume_decline:
@@ -277,15 +282,11 @@ def _find_breakout_after_pole(
 
         flag_candle_highs.append(candle_high)
         flag_candle_lows.append(candle_low)
+        flag_closes.append(close_price)  # tylko dni flagi, nie dzień wybicia
 
         # Odrzuć jeśli flaga spada za nisko (poniżej połowy masztu)
+        # Bulkowski: flaga nie może cofnąć więcej niż połowę masztu
         if candle_low < half_pole:
-            return None
-
-        # Odrzuć jeśli cofnięcie już przekroczyło 25% masztu
-        flag_low = min(flag_candle_lows)
-        retracement = (max_price - flag_low) / pole_height
-        if retracement > 0.25:
             return None
 
     return None
@@ -293,15 +294,13 @@ def _find_breakout_after_pole(
 
 def find_flag_breakouts_on_df(
         df: pd.DataFrame,
-        # --- Maszt (Bulkowski: wzrost ≥90% w ≤40 sesjach) ---
         pole_min_days: int = 4,
-        pole_max_days: int = 40,           # 2 miesiące sesyjne
-        pole_min_growth: float = 0.90,     # ≥90% wzrostu (WWF Bulkowskiego)
-        pole_max_daily_decline: float = 0.33,
-        max_days_without_new_high: int = 2,
-        # --- Flaga (Bulkowski: 5–19 dni, cofnięcie 10–25%) ---
-        flag_min_days: int = 5,
-        flag_max_days_until_breakout: int = 19,  # Bulkowski: max 19 dni
+        pole_max_days: int = 40,
+        pole_min_growth: float = 0.85,
+        pole_max_daily_decline: float = 0.20,
+        max_days_without_new_high: int = 3,
+        flag_min_days: int = 3,
+        flag_max_days_until_breakout: int = 25,
         require_volume_decline: bool = True,      # Bulkowski: wolumen maleje w fladze
         require_dense_flag: bool = False,         # Bulkowski: gęsta flaga (wyższe wybicia)
 ) -> List[dict]:

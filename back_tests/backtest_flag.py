@@ -98,12 +98,14 @@ def gain_to_ultimate_high(df: pd.DataFrame, event_idx: int, drawdown_threshold: 
 
 
 def stop_loss_hit(df: pd.DataFrame, event_idx: int, flag_low: float) -> bool:
-    """Bulkowski: stop 1 grosz poniżej minimum flagi."""
-    stop_price = flag_low - 0.01
+    """Bulkowski: stop = zamknięcie poniżej minimum flagi.
+    Bulkowski wprost pisze: 'a closing price below the low posted in the flag'.
+    Nie używamy intraday Low — tylko Close."""
+    stop_price = flag_low
     future = df.iloc[event_idx + 1:]
     if future.empty:
         return False
-    return bool((future["Low"] < stop_price).any())
+    return bool((future["Close"] < stop_price).any())
 
 
 def backtest_flag_for_ticker(

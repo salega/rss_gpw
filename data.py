@@ -313,7 +313,6 @@ WIG_SECTOR_BY_TICKER = {
 ALL = SWIG_80 + MWIG_40 + WIG_20
 
 SP_500 = [
-    "AMR",
     "IIIN",
     "NVDA",
     "AAPL",
@@ -750,7 +749,6 @@ SP_500 = [
 
 RUSSELL_2000 = [
     "BBT",
-    "MOG.A",
     "CYTK",
     "UMBF",
     "ONB",
@@ -853,7 +851,6 @@ RUSSELL_2000 = [
     "SKY",
     "TCBI",
     "AZZ",
-    "BH.A",
     "OII",
     "CENX",
     "NWE",
@@ -1408,7 +1405,6 @@ RUSSELL_2000 = [
     "HBCP",
     "MLAB",
     "EBF",
-    "CRD.A",
     "KELYA",
     "TATT",
     "CLB",

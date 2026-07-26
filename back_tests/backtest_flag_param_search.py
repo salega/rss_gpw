@@ -156,37 +156,155 @@ def max_drawdown_next_n_days(df: pd.DataFrame, event_idx: int, n_days: int) -> O
     return safe_pct_change(event_close, min_low)
 
 
-def gain_to_ultimate_high(df: pd.DataFrame, event_idx: int, drawdown_threshold: float = 0.20) -> Optional[float]:
-    """Bulkowski: zasięg od ceny wybicia do ostatecznego wierzchołka,
-    po którym kurs spada o co najmniej drawdown_threshold (domyślnie 20%)."""
+def calc_atr(df: pd.DataFrame, idx: int, period: int = 14) -> float:
+    """ATR (Average True Range) — mierzy dzienną zmienność kursu."""
+    start = max(0, idx - period)
+    window = df.iloc[start:idx + 1]
+    if len(window) < 2:
+        return float(df.iloc[idx]["High"]) - float(df.iloc[idx]["Low"])
+    true_ranges = []
+    for i in range(1, len(window)):
+        high = float(window.iloc[i]["High"])
+        low = float(window.iloc[i]["Low"])
+        prev_close = float(window.iloc[i - 1]["Close"])
+        tr = max(high - low, abs(high - prev_close), abs(low - prev_close))
+        true_ranges.append(tr)
+    return sum(true_ranges) / len(true_ranges)
+
+
+def trade_result_trailing_atr(df: pd.DataFrame, event_idx: int, flag_low: Optional[float], atr_multiplier: float = 2.0, atr_period: int = 14, min_gain_to_activate: float = 0.0) -> dict:
+    """
+    Trailing stop oparty o ATR: stop = szczyt - atr_multiplier * ATR(atr_period).
+    Aktywny od pierwszego dnia (min_gain_to_activate=0.0 = bez progu aktywacji).
+    flag_low ma zawsze priorytet.
+    """
     entry_close = float(df.iloc[event_idx]["Close"])
     future = df.iloc[event_idx + 1:]
     if future.empty:
-        return None
+        return {"result_pct": None, "sl_hit": False, "exit_price": entry_close}
 
     peak_price = entry_close
+    trailing_active = False
+
     for i in range(len(future)):
+        future_idx = event_idx + 1 + i
         high = float(future.iloc[i]["High"])
+        low = float(future.iloc[i]["Low"])
+
+        if flag_low is not None and low < flag_low:
+            result = safe_pct_change(entry_close, flag_low)
+            return {"result_pct": result, "sl_hit": True, "exit_price": flag_low}
+
         if high > peak_price:
             peak_price = high
 
-        subsequent = future.iloc[i + 1:]
-        if subsequent.empty:
-            break
-        min_subsequent_low = float(subsequent["Low"].min())
-        if peak_price > 0 and (peak_price - min_subsequent_low) / peak_price >= drawdown_threshold:
-            return safe_pct_change(entry_close, peak_price)
+        if not trailing_active and peak_price >= entry_close * (1 + min_gain_to_activate):
+            trailing_active = True
 
-    return None
+        if trailing_active:
+            atr = calc_atr(df, future_idx, period=atr_period)
+            trailing_stop_price = peak_price - atr_multiplier * atr
+            if low < trailing_stop_price:
+                result = safe_pct_change(entry_close, trailing_stop_price)
+                return {"result_pct": result, "sl_hit": False, "exit_price": trailing_stop_price}
+
+    return {"result_pct": None, "sl_hit": False, "exit_price": entry_close}
 
 
-def stop_loss_hit(df: pd.DataFrame, event_idx: int, flag_low: float) -> bool:
-    """Bulkowski: stop 1 grosz poniżej minimum flagi."""
-    stop_price = flag_low - 0.01
+def trade_result_trailing_stop(df: pd.DataFrame, event_idx: int, flag_low: Optional[float], trailing_pct: float = 0.10, min_gain_to_activate: float = 0.15, initial_stop_pct: float = 0.10) -> dict:
+    """
+    Trailing stop z initial stop:
+    1. Przed aktywacją trailing stopu: initial stop = entry * (1 - initial_stop_pct)
+       (Bulkowski używał ~10% od ceny wejścia jako początkowy stop)
+    2. Po osiągnięciu +min_gain_to_activate: trailing stop = szczyt * (1 - trailing_pct)
+    3. flag_low zawsze ma priorytet (jeśli jest niżej niż initial stop)
+
+    Zwraca dict z:
+      - result_pct: wynik transakcji w %
+      - sl_hit: True jeśli stop-loss trafiony
+      - exit_price: cena wyjścia
+    """
+    entry_close = float(df.iloc[event_idx]["Close"])
     future = df.iloc[event_idx + 1:]
     if future.empty:
-        return False
-    return bool((future["Low"] < stop_price).any())
+        return {"result_pct": None, "sl_hit": False, "exit_price": entry_close}
+
+    peak_price = entry_close
+    trailing_active = False
+    initial_stop_price = entry_close * (1 - initial_stop_pct)
+    # initial stop nie może być wyżej niż flag_low
+    effective_initial_stop = max(initial_stop_price, flag_low) if flag_low is not None else initial_stop_price
+
+    for i in range(len(future)):
+        high = float(future.iloc[i]["High"])
+        low = float(future.iloc[i]["Low"])
+
+        if not trailing_active:
+            # przed aktywacją trailing stopu: initial stop chroni pozycję
+            if low < effective_initial_stop:
+                result = safe_pct_change(entry_close, effective_initial_stop)
+                return {"result_pct": result, "sl_hit": True, "exit_price": effective_initial_stop}
+        else:
+            # po aktywacji: flag_low nadal ma priorytet
+            if flag_low is not None and low < flag_low:
+                result = safe_pct_change(entry_close, flag_low)
+                return {"result_pct": result, "sl_hit": True, "exit_price": flag_low}
+
+        # aktualizuj szczyt
+        if high > peak_price:
+            peak_price = high
+
+        # aktywuj trailing stop po +min_gain_to_activate
+        if not trailing_active and peak_price >= entry_close * (1 + min_gain_to_activate):
+            trailing_active = True
+
+        if trailing_active:
+            trailing_stop_price = peak_price * (1 - trailing_pct)
+            if low < trailing_stop_price:
+                result = safe_pct_change(entry_close, trailing_stop_price)
+                return {"result_pct": result, "sl_hit": False, "exit_price": trailing_stop_price}
+
+    return {"result_pct": None, "sl_hit": False, "exit_price": entry_close}
+
+
+def trade_result(df: pd.DataFrame, event_idx: int, flag_low: Optional[float], drawdown_threshold: float = 0.20) -> dict:
+    """
+    Symuluje transakcję po wybiciu. Dwa scenariusze (co nastąpi pierwsze):
+    1. Low spada poniżej flag_low → ❌ stop-loss, nieudana transakcja
+    2. Low spada ≥20% od bieżącego szczytu → ✅ wychodzisz na szczycie
+
+    Zwraca dict z:
+      - result_pct: wynik transakcji w %
+      - sl_hit: True jeśli stop-loss
+      - peak_price: szczyt osiągnięty przed zamknięciem
+    """
+    entry_close = float(df.iloc[event_idx]["Close"])
+    future = df.iloc[event_idx + 1:]
+    if future.empty:
+        return {"result_pct": None, "sl_hit": False, "peak_price": entry_close}
+
+    peak_price = entry_close
+
+    for i in range(len(future)):
+        high = float(future.iloc[i]["High"])
+        low = float(future.iloc[i]["Low"])
+
+        # najpierw sprawdź stop-loss (Low < flag_low) — priorytet przed szczytem
+        if flag_low is not None and low < flag_low:
+            # stop-loss trafiony — wynik to zysk/strata do tego momentu (cena = flag_low)
+            result = safe_pct_change(entry_close, flag_low)
+            return {"result_pct": result, "sl_hit": True, "peak_price": peak_price}
+
+        # aktualizuj szczyt
+        if high > peak_price:
+            peak_price = high
+
+        # szczyt potwierdzony spadkiem ≥20%
+        if peak_price > 0 and (peak_price - low) / peak_price >= drawdown_threshold:
+            result = safe_pct_change(entry_close, peak_price)
+            return {"result_pct": result, "sl_hit": False, "peak_price": peak_price}
+
+    return {"result_pct": None, "sl_hit": False, "peak_price": peak_price}
 
 
 def backtest_flag_for_ticker(
@@ -223,26 +341,37 @@ def backtest_flag_for_ticker(
             continue
 
         flag_low = signal_row.get("flag_low")
+        entry_price = float(df.iloc[event_idx]["Close"])
+
+        tr = trade_result(df, event_idx, flag_low)
+        actual_result_pct = tr["result_pct"]
+        sl_hit = tr["sl_hit"]
+
+        # trailing 20% od szczytu, initial stop 20% od ceny wejścia
+        tr10 = trade_result_trailing_stop(df, event_idx, flag_low, trailing_pct=0.20, min_gain_to_activate=0.0, initial_stop_pct=0.20)
+        trailing_10pct_result = tr10["result_pct"]
+
+        tr_atr = trade_result_trailing_atr(df, event_idx, flag_low, atr_multiplier=2.0, min_gain_to_activate=0.0)
+        trailing_atr_result = tr_atr["result_pct"]
 
         rows.append(
             {
                 "ticker": ticker,
                 "date": event_date,
-                "close_event": float(df.iloc[event_idx]["Close"]),
+                "close_event": entry_price,
                 "signal": signal_row["signal"],
                 "pole_growth_pct": signal_row.get("pole_growth_pct"),
                 "retracement_pct": signal_row.get("retracement_pct"),
                 "flag_days": signal_row.get("flag_days"),
-                # Bulkowski: kluczowa metryka
-                "gain_to_ultimate_high_pct": gain_to_ultimate_high(df, event_idx),
-                # Pomocnicze
+                "actual_result_pct": actual_result_pct,
+                "trailing_10pct_result": trailing_10pct_result,  # trailing stop 10% od szczytu
+                "trailing_atr_result": trailing_atr_result,      # trailing stop 2*ATR (Bulkowski)
                 "change_5d_pct": close_change_after_n_days(df, event_idx, 5),
                 "change_10d_pct": close_change_after_n_days(df, event_idx, 10),
                 "change_20d_pct": close_change_after_n_days(df, event_idx, 20),
                 "max_gain_20d_pct": max_gain_next_20_days(df, event_idx),
                 "max_drawdown_10d_pct": max_drawdown_next_n_days(df, event_idx, 10),
-                # Stop-loss
-                "stop_loss_hit": stop_loss_hit(df, event_idx, flag_low) if flag_low is not None else None,
+                "stop_loss_hit": sl_hit,
                 "flag_low": flag_low,
             }
         )
@@ -252,13 +381,13 @@ def backtest_flag_for_ticker(
 
 def build_param_sets() -> list[dict[str, Any]]:
     # Parametry bazowe wg Bulkowskiego — można rozszerzyć listy żeby przetestować warianty
-    pole_min_days_values = [4]
+    pole_min_days_values = [4]             # cofnięte do 4 — krótkie maszty generują fałszywe sygnały
     pole_max_days_values = [40]            # Bulkowski: 2 miesiące sesyjne
     pole_min_growth_values = [0.85]        # Bulkowski: "podwaja się lub prawie" — próg 85%
     pole_max_daily_decline_values = [0.20]  # nieużywane, zachowane dla kompatybilności
     max_days_without_new_high_values = [3]  # po ilu dniach bez nowego High maszt się kończy
-    flag_min_days_values = [3]             # Bulkowski: min 3 dni (flaga może być krótka)
-    flag_max_days_until_breakout_values = [19]  # Bulkowski: max 19 dni
+    flag_min_days_values = [3]             # Bulkowski: min 3 dni
+    flag_max_days_until_breakout_values = [25]  # punkt 4: zluzowane z 19 do 25
     require_volume_decline_values = [False]   # bez filtra wolumenu — bazowa liczba formacji
     require_dense_flag_values = [False]       # bez filtra gęstości — bazowa liczba formacji
 
@@ -326,7 +455,9 @@ def summarize_results(results_df: pd.DataFrame, params: dict[str, Any]) -> dict[
     }
 
     metric_columns = [
-        "gain_to_ultimate_high_pct",   # Bulkowski: kluczowa metryka
+        "actual_result_pct",       # idealny szczyt (spadek 20%) lub SL
+        "trailing_10pct_result",   # trailing stop 10% od szczytu
+        "trailing_atr_result",     # trailing stop 2*ATR (Bulkowski)
         "change_5d_pct",
         "change_10d_pct",
         "change_20d_pct",
@@ -377,31 +508,30 @@ def print_top_configs(summary_df: pd.DataFrame, top_n: int = 10) -> None:
         "config",
         "signals_count",
         "tickers_count",
-        "gain_to_ultimate_high_pct_avg",   # Bulkowski: kluczowa
-        "gain_to_ultimate_high_pct_median",
-        "change_10d_pct_avg",
-        "max_gain_20d_pct_avg",
-        "max_drawdown_10d_pct_avg",
+        "actual_result_pct_avg",
+        "trailing_10pct_result_avg",
+        "trailing_atr_result_avg",
+        "trailing_atr_result_median",
+        "trailing_atr_result_positive_rate",
         "stop_loss_hit_rate",
     ]
 
     available_cols = [col for col in cols if col in summary_df.columns]
 
-    print("TOP konfiguracje (sortowane wg gain_to_ultimate_high):")
+    print("TOP konfiguracje (sortowane wg actual_result_pct):")
     print(summary_df[available_cols].head(top_n).to_string(index=False))
 
 
 def main() -> None:
     start_date = datetime(1985, 1, 1)  # Bulkowski: od stycznia 1985
-    end_date = datetime(2011, 1, 1)    # Bulkowski: do stycznia 2011
+    end_date = datetime(2026, 1, 1)    # Bulkowski: do stycznia 2011
     market = "NYSE"
     market_suffix = MARKET_SUFFIXES[market]
 
     print("Ładowanie danych z cache / dociąganie braków...")
     history_map: dict[str, pd.DataFrame] = {}
 
-    for ticker in ALL_US[:1]:
-    # for ticker in ALL_US:
+    for ticker in ALL_US:
         print(f"Ładowanie: {ticker}")
         df = get_history_with_cache(
             ticker,
@@ -444,12 +574,49 @@ def main() -> None:
 
             if rows:
                 for row in rows:
+                    actual = row.get("actual_result_pct")
+                    trailing = row.get("trailing_10pct_result")
+                    sl = row.get("stop_loss_hit")
+                    max20 = row.get("max_gain_20d_pct")
+
+                    def fmt(v: Any) -> str:
+                        return f"{v:.1f}%" if v is not None and not (isinstance(v, float) and pd.isna(v)) else "n/a"
+
+                    sl_str = "🔴SL" if sl else "🟢ok"
+                    result_str = fmt(actual)
+                    emoji = "✅" if actual is not None and actual > 0 else "❌"
+
                     print(
-                        f"  {ticker} | breakout={pd.Timestamp(row['date']).strftime('%Y-%m-%d')} | "
-                        f"close={row['close_event']:.2f} | signal={row['signal']} | "
-                        f"ticker_time={ticker_elapsed:.2f}s | config_time={config_elapsed:.2f}s "
-                        f"| progress={ticker_idx}/{total_tickers}"
+                        f"  {ticker} | {pd.Timestamp(row['date']).strftime('%Y-%m-%d')} | "
+                        f"close={row['close_event']:.2f} | {sl_str} | "
+                        f"wynik={emoji}{result_str} | trail20={fmt(trailing)} | trailATR={fmt(row.get('trailing_atr_result'))} | max20d={fmt(max20)} | "
+                        f"{row['signal']} | {ticker_idx}/{total_tickers}"
                     )
+
+                    PRINT_OHLC = False  # zmień na True żeby widzieć notowania dzień po dniu
+                    if PRINT_OHLC:
+                        flag_low_val = row.get("flag_low")
+                        flag_days_val = row.get("flag_days")
+                        try:
+                            event_idx_val = df.index.get_loc(pd.Timestamp(row["date"]))
+                            if isinstance(event_idx_val, int) and flag_days_val is not None:
+                                fs_idx = event_idx_val - int(flag_days_val)
+                                print(f"    {'Data':<12} {'Open':>8} {'High':>8} {'Low':>8} {'Close':>8}  Faza")
+                                end_idx = min(event_idx_val + 61, len(df))
+                                for di in range(max(0, fs_idx), end_idx):
+                                    d = df.iloc[di]
+                                    date_s = df.index[di].strftime("%Y-%m-%d")
+                                    if di < event_idx_val:
+                                        phase = "FLAGA"
+                                    elif di == event_idx_val:
+                                        phase = "WYBICIE"
+                                    else:
+                                        sl_marker = " ◄SL" if flag_low_val is not None and float(d["Low"]) < flag_low_val else ""
+                                        phase = f"PO{sl_marker}"
+                                    print(f"    {date_s:<12} {float(d['Open']):>8.2f} {float(d['High']):>8.2f} {float(d['Low']):>8.2f} {float(d['Close']):>8.2f}  {phase}")
+                                print()
+                        except Exception:
+                            pass
 
             for row in rows:
                 all_detail_rows.append(
@@ -474,7 +641,7 @@ def main() -> None:
         print()
 
     summary_df = pd.DataFrame(all_summary_rows).sort_values(
-        ["gain_to_ultimate_high_pct_avg", "max_gain_20d_pct_avg", "change_10d_pct_avg"],
+        ["actual_result_pct_avg", "max_gain_20d_pct_avg", "change_10d_pct_avg"],
         ascending=False,
         na_position="last",
     ).reset_index(drop=True)
@@ -484,8 +651,8 @@ def main() -> None:
         details_df = details_df.sort_values(["config", "ticker", "date"]).reset_index(drop=True)
 
     timestamp = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
-    summary_path = f"/Users/pl8000269/IdeaProjects/rss_gpw/back_tests/reports/flag_param_search_summary_{timestamp}.csv"
-    details_path = f"/Users/pl8000269/IdeaProjects/rss_gpw/back_tests/reports/flag_param_search_details_{timestamp}.csv"
+    summary_path = f"/Users/pl8000269/IdeaProjects/rss_gpw/back_tests/reports/flag_param_search_summary_{market}_{timestamp}.csv"
+    details_path = f"/Users/pl8000269/IdeaProjects/rss_gpw/back_tests/reports/flag_param_search_details_{market}_{timestamp}.csv"
 
     summary_df.to_csv(summary_path, index=False)
     details_df.to_csv(details_path, index=False)

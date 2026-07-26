@@ -1,0 +1,268 @@
+WYSOKA WĄSKA FLAGA
+Badaniom formacji wysokiej wąskiej flagi (WWF) poświęciłem dużo czasu. Chciałem ustalić, jak ona działa, żeby móc maksymalizować zyski i unikać strat. Dane będące podstawą wyników podanych w tabeli są zaktualizowane w stosunku do danych wykorzystanych w moich książkach sprzed 2012 roku. Identyfikacja WWF jest bajecznie prosta – prawie tak samo jak rozpoznanie bryły, która zabłąkała się do stada słoni. Wystarczy, że spełnione zostają dwa warunki:
+
+Cena podwaja się (lub prawie się podwaja) w czasie dwóch miesięcy, formując maszt flagi.
+Następnie cena cofa się i formuje flagę, choć konsolidacja ta nie musi mieć klasycznego kształtu flagi.
+
+Wykorzystanie wysokiej wąskiej flagi w praktyce
+O ile rozpoznanie tej formacji jest proste, o tyle wykorzystanie jej w krótkoterminowej transakcji już nie. Przede wszystkim potrzeba odwagi, by kupić akcje, których cena właśnie wzrosła o sto procent. To trochę tak, jakby ktoś nas namawiał do skoku z krawędzi wysokiego urwiska. Trudno się nie bać. Dość przecież często się zdarza, że akcje kosztują więcej niż kiedykolwiek wcześniej.
+Dokonując transakcji na podstawie formacji WWF, trzeba nastawić się na wykorzystanie impetu rynku – kupujemy drogo, żeby sprzedać jeszcze drożej. Skąd jednak mamy wiedzieć, jak daleko zajdzie spodziewany wzrost? Nie wiadomo. Jest jednak siedem wskazówek, które mogą być pomocne w takich sytuacjach.
+
+
+Sprawdź, czy powyżej poziomu wybicia nie ma obszaru oporu, na przykład strefy konsolidacji, który może zatrzymać wzrost ceny.
+
+
+Uważaj na flagi o luźnej strukturze, to znaczy takie, w których słupki wykresu nie zachodzą na siebie, a cena przebywa kilka dni na dole formacji, a potem kilka dni na górze. Bardziej wiarygodne są flagi o gęstej budowie, takie jak proporzec BC z diagramu 3.1 albo flaga z diagramu 3.3, w których słupki zachodzą na siebie dzień po dniu. Wybicia z luźnych flag wynoszą średnio 40 procent, podczas gdy z gęstych – aż 53.
+
+
+
+
+Z moich badań wynika, że najsilniejsze wybicia są generowane przez flagi, które znoszą od 10 do 25 procent wysokości masztu.
+
+
+Silniejsze wybicia dają flagi trwające od 5 do 19 dni. Flagi dłuższe mają mniejszą skuteczność – tym gorszą, im dłuższy czas ich trwania.
+
+
+Jeśli wolumen maleje w czasie formowania się flagi, wybicia są większe i wynoszą około 50 procent. Gdy wolumen rośnie, wybicia wynoszą średnio 35 procent.
+
+
+Flagi dają nieznacznie lepsze wyniki, gdy wolumen w dniu wybicia jest niewielki – 52 procent w porównaniu do 46. Dzień wybicia to dzień, w którym dochodzi do zamknięcia kursu powyżej najwyższego szczytu WWF.
+
+
+Wyższe wybicia, średnio 53 procent, są generowane przez WWF, po których nie dochodzi do ruchu powrotnego. Gdy następuje ruch powrotny, średnie wybicie wynosi 42 procent.
+
+
+Wskazówkę numer 3 sformułowałem na podstawie testu, w którym uwzględniłem 2897 formacji WWF znalezionych na wykresach 589 spółek z okresu od stycznia 1985 roku do stycznia roku 2011. Mój program wynajdował spółki, które w czasie nie dłuższym niż dwa miesiące wzrosły o co najmniej 90 procent. Nie uwzględniałem spółek, których kurs był niższy od 1 dolara. W niektórych przypadkach maszt flagi był dłuższy.
+Warto odnotować, że 38 procent objętych testem formacji WWF wystąpiło podczas bessy na szerokim rynku. Oznacza to, że nawet w czasie rynku niedźwiedzia nie wszystkie spółki spadają. Niemniej jednak kupowanie akcji na podstawie tej formacji w czasie bessy jest równie ryzykowne, jak pływanie w rzece pełnej piranii – wszystko zależy od tego, kiedy one ostatnio jadły. W czasie hossy średni zysk wynosił 31 procent, zaś podczas bessy tylko 22 procent.
+Jak mierzyłem wyniki? Liczyłem zasięg wzrostu od poziomu wybicia do ostatecznego wierzchołka, czyli do wierzchołka, po którym kurs spadał o co najmniej 20 procent. Były to więc wyniki transakcji doskonałych.
+Po 19 procentach wybić z WWF, czyli wzrostów ponad szczyt masztu flagi, kurs spadał poniżej minimum flagi, więc nie było mowy o ostatecznym wierzchołku. Wierzchołek taki był osiągany w 65 procentach przypadków. 14 procent wybić zakończyło się spadkiem poniżej podstawy masztu flagi, a w 2 procentach próbek zabrakło danych.
+Oznacza to, że jeśli umieszczalibyśmy stop o centa poniżej minimum flagi, w 33 procentach sytuacji transakcja okazałaby się nieudana (średnia strata wyniosłaby 27 procent). Jednak czekając, aż dojdzie do zamknięcia kursu powyżej szczytu masztu, można ograniczyć procent nieudanych transakcji do 19.
+• Czekając, aż dojdzie do zamknięcia kursu powyżej szczytu masztu, można ograniczyć procent nieudanych transakcji z 33 do 19.
+• Transakcji należy dokonywać dopiero, gdy kurs zamknie się ponad szczytem masztu WWF.
+To najważniejsza reguła dotycząca WWF – kupujemy dopiero wtedy, gdy dochodzi do zamknięcia powyżej wierzchołka masztu. Moje trzy pierwsze nieudane transakcje były spowodowane tym, że nie poczekałem na ten moment. Kupowałem za wcześnie i transakcje zostały zamknięte na poziomie stopu. Nie powtarzaj więc tego błędu.
+Wróćmy jednak do liczb. Stwierdziłem, że połowa wybić z WWF nie sięgnęła powyżej 19 procent, a 18 procent wybić nie przekroczyła 5 procent. Oznacza to, że choć na formacji tej można zarobić dużo, droga do sukcesu nie jest prosta.
+Sprawdzałem też nachylenie wykresu przed pojawieniem się WWF. Założyłem, że strome trendy spadkowe, jakie obserwowaliśmy w czasie bessy lat 2007–2009, powodowały wyjątkowo dużą liczbę sygnałów prowadzących do transakcji nieudanych. Wyniki tych badań przedstawiam w tabeli 3.2.
+
+
+TABELA 3.2 Zasięg wybicia z formacji WWF w zależności od nachylenia poprzedzającego ją trendu
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+Nachylenie trenduTrend miesięcznyTrend 2-miesięcznyStromy trend wzrostowy27%30%Łagodny trend wzrostowy30%33%Stromy trend spadkowy25%24%Łagodny trend spadkowy34%27%Trend wzrostowy28%30%Trend spadkowy28%25%Trend łagodny (±0,10)33%30%Trend stromy25%26%Mediana nachylenia wzrostu0,080,05Mediana nachylenia spadku-0,10-0,08
+Żeby określić nachylenie trendu, stosowałem regresję liniową w stosunku do cen zamknięcia o miesiąc i dwa miesiące poprzedzających początek formacji (czyli punkt A z wykresu 3.1). Na dole tabeli 3.2 podaję mediany nachylenia trendów zwyżkujących i zniżkujących poprzedzających formację.
+Ustaliłem, że strome trendy, niezależnie od ich kierunku, sprawiały, że następujące po nich formacje WWF generowały wyraźnie słabsze wybicia. I tak na przykład formacje WWF następujące po trwających miesiąc stromych trendach spadkowych (czyli bardziej stromych niż podana w tabeli mediana nachylenia spadku) dawały po wybiciu średni zysk 25 procent, podczas gdy formacje poprzedzone miesięcznymi łagodnymi trendami dawały średni zysk 34 procent, czyli o 36 procent więcej.
+Zbadałem również zasięg wybić dla formacji poprzedzonych po prostu trendem wzrostowym lub spadkowym. Jeśli na dwa miesiące przed początkiem WWF cena rosła, wyniki były lepsze (średnio 30 procent), a jeśli spadała, były nieco gorsze (25 procent). Jednak przy uwzględnieniu trendu z okresu miesiąca zyski były takie same, niezależnie od trendu.
+Zbadałem miesięczne trendy o nachyleniach mieszczących się w przedziale ±1,10 (włącznie z wartościami granicznymi) i o nachyleniach wykraczających poza ten przedział. Wybicia z formacji WWF wyniosły odpowiednio 33 i 25 procent. W przypadku trendów dwumiesięcznych było to 30 i 26 procent.
+• Formacje WWF poprzedzone łagodnymi trendami generują silniejsze wybicia.
+
+Wysoka wąska flaga – jak ja to robię
+Oglądałem setki wykresów formacji WWF, żeby odgadnąć zależność między kształtem masztu a kształtem ruchu następującego po wybiciu z flagi. Zbliżony do pionu maszt czasem generował wspaniały kolejny wzrost, a czasem nic z tego nie wychodziło. Postanowiłem więc odwołać się do statystyki, żeby ustalić, jaki wariant pierwszego impulsu jest najbardziej obiecujący. Udało mi się poczynić kilka obserwacji, które teraz wykorzystuję w transakcjach.
+• Jeśli po wybiciu z flagi kurs spada poniżej jej minimum, lepiej poszukać okazji gdzie indziej. Sytuację taką widać na diagramie 3.1. WWF zaczyna się w punkcie A — kurs dociera do szczytu masztu w punkcie B i formuje gęstą flagę w kształcie proporca. Po wybiciu kurs niestety spada i dociera poniżej minimum flagi, do punktu D. Następnie kurs powraca do poziomu flagi, porusza się przez jakiś czas horyzontalnie i dopiero później rośnie, ale tylko o 17 procent powyżej punktu B. Potem następuje spadek o 25 procent zakończony w punkcie F.
+DIAGRAM 3.1 Spadek kursu poniżej poziomu flagi zapowiada słabsze wybicie z formacji.
+
+DIAGRAM 3.2 Wysoka wąska flaga AB pojawiła się w czasie bessy i jest po prostu korektą trendu spadkowego.
+• Jeśli w czasie formowania masztu powstaje obszar konsolidacji lub kurs zatrzymuje się, zdecydowany wzrost po wybiciu staje się wątpliwy. Unikaj formacji, w których maszt nie ma formy prostoliniowego wzrostu.
+• Unikaj formacji WWF, w których kurs porusza się przez dłuższy czas w trendzie spadkowym, tak jak na diagramie 3.2. Formacja zaczyna się w punkcie A, a szczytem masztu jest punkt B. Wzrost sięgnął punktu C, czyli względem punktu B wyniósł 25 procent.
+• Unikaj formacji WWF, które wyglądają na korektę trendu spadkowego, tak jak na diagramie 3.2. Schemat takiej sytuacji pokazuję w ramce po lewej stronie wykresu. Trend spadkowy zostaje przerwany formacją WWF, ale potem spadki są kontynuowane.
+• Unikaj odbić martwego kota, czyli formacji, w ramach której kurs spada w czasie jednej sesji od 15 do 70 lub więcej. Kurs może następnie odbić w górę, rosnąc nawet dwukrotnie i tworząc formację WWF, ale może to być tylko przerwa poprzedzająca całkowitą katastrofę. W takiej sytuacji nie należy się spodziewać silnego wybicia z flagi. Wprawdzie nie jest ono wykluczone, ale szanse są niewielkie.
+
+
+ Należy również zachować ostrożność w przypadku odwróconego odbicia martwego kota. Niespodziewane dobre informacje mogą sprawić, że cena akcji wzrośnie o sto procent, formując WWF, ale posiadacze akcji będą je wtedy sprzedawali, a traderzy sprzedawali krótko, co sprawi, że kurs znajdzie się pod znaczną presją.
+• Unikaj formacji WWF wyglądających na drugi impuls wzrostowego ruchu mierzonego. Sytuację taką pokazuje w ramce po prawej stronie diagramu 3.2. Gdy formacja jest drugim impulsem takiego ruchu, wybicie będzie słabe, zwłaszcza jeśli pierwszy impuls miał postać WWF, tak jak w lewej części wykresu z diagramu 3.1. Formacja pojawiła się między punktami G i H, a wybicie z niej dotarło do punktu I. Cały ruch od C do I jest pierwszym impulsem ruchu mierzonego, zaś spadek z I do A to faza korekty. Drugi impuls zaczyna się w punkcie A i znów przyjmuje postać WWF.
+• Jeśli cena porusza się w trendzie bocznym, a następnie spada, by później utworzyć formację WWF, wybicie z flagi może nie dotrzeć do teoretycznego poziomu docelowego. Wyobraź sobie dziurę w drodze. Cena może wzrosnąć dwukrotnie, żeby wydobyć się z dziury i powrócić do dawnego poziomu, a nawet jeśli wzniesie się wyżej, nie będzie to wzrost imponujący, lecz co najwyżej porównywalny z podskokiem koła, które wydostało się z dziury w asfalcie.
+• Nie reaguj na sygnał WWF, jeśli na dwa miesiące przed początkiem formacji cena akcji była wyższa od poziomu podstawy masztu. Jeśli maszt zaczyna się na poziomie 10 dolarów, a dwa miesiące wcześniej akcje kosztowały 11 dolarów, lepiej zrezygnować z kupna.
+• Badałem poziom cen przed miesiącem od początku formacji, a także przed 2, 3, 6 i 12 miesiącami. Stwierdziłem, że jeśli cena sprzed dwóch miesięcy jest niższa od podstawy masztu, wybicia z flagi są dłuższe (33 procent w porównaniu do 25).
+• W czasie rynku byka ruchy powrotne po wybiciu z flagi zdarzają się w 57 procentach przypadków, a wtedy zyski są mniejsze niż wtedy, gdy tak się nie dzieje (43 procent w porównaniu do 54 procent). Mediana spadku w ramach ruchu powrotnego to 10 procent poniżej szczytu masztu. Gdy ruch powrotny jest mniejszy od mediany, średni wzrost po wybiciu wynosi 52 procent. Gdy jest od niej większy, wzrost wynosi 34 procent.
+To zbyt duża porcja informacji na jednorazową lekturę, chyba że wzmocnisz się dodatkową kawą (ja wolę zieloną herbatę). Jeśli jednak poważnie zamierzasz zarabiać pieniądze na formacjach WWF, nalej sobie kolejną filiżankę i przeczytaj te wskazówki raz jeszcze. Później będziesz mógł je połączyć z własnymi kryteriami transakcji.
+
+
+
+
+
+
+
+
+
+WYSOKA WĄSKA FLAGA NA WYKRESIE INSTEEL INDUSTRIES
+Transakcje dokonywane na podstawie sygnałów WWF przyniosły mi zyski w 56 procentach przypadków. Były to jednak zyski spore.
+W rozdziale 18 książki Analiza fundamentalna i inwestowanie pozycyjne w podrozdziale „Przykład inwestycji pozycyjnej” opisałem transakcję akcjami spółki Ann Taylor, której punktem wyjścia była formacja WWF. Inną taką transakcję przedstawiam na diagramie 3.3. Spadki kursu Insteel Industries (IIIN) zakończyły się w grudniu na poziomie 7,82 (punkt A), a następnie akcje wzrosły i na początku lutego osiągnęły cenę 15 dolarów, co pozwalało uznać ten drugi ruch za maszt wysokiej flagi. Wprawdzie nie było to podwojenie ceny, ale niewiele brakowało.
+Samą flagę zaznaczyłem na wykresie okręgiem. Nie jest to klasyczna flaga, raczej obszar ruchu bocznego. Tak się często zdarza, a regularne, prostokątne kształty są raczej wyjątkiem.
+Docelowy zasięg wybicia obliczyłem, odejmując od maksimum z 10 lutego, czyli od 15,10, minimum z 28 grudnia, czyli 8,07. Otrzymałem 7,03. Reguła pomiaru zaleca, by dodawać połowę wysokości pierwszego ruchu do najniższego punktu flagi, ale ja dodałem ją do punktu najwyższego. Uzyskałem poziom docelowy 18,62.
+Zastosowałem do formacji mój system oceny i uzyskałem ocenę +2. Była więc spora szansa na to, że kurs przekroczy ten poziom docelowy wynikający z mediany wybicia z formacji, czyli 19,59.
+Jeśli chodzi o siłę względną, branża materiałów budowlanych znajdowała się mniej więcej w połowie rankingu (zajmowała miejsce 18 z 46), natomiast sama spółka była na pierwszym miejscu wśród 10 firm, z tego sektora, które były na mojej liście spółek obserwowanych.
+Oporu można było się spodziewać na poziomie okrągłych liczb, w tym wypadku na poziomie 17,50, który odpowiadał cenie 35 dolarów sprzed splitu akcji. Wsparcie znajdowało się na wysokości flagi, czyli w obszarze od 14 do 15 dolarów.
+Akcje kupiłem na otwarciu następnego dnia po tym, jak kurs zamknął się powyżej maksimum flagi. Moje zlecenie zostało zrealizowane po cenie 15,52. Wyliczyłem poziom stopu zmienności (powinien znaleźć się w odległości 13 procent), ale zlecenie umieściłem nieco wyżej, na 13,91, co odpowiadało stracie 10 procent. W miarę wzrostu ceny obliczałem stop na nowo i podnosiłem go, unikając liczb całkowitych. Na przykład 19 lutego wyszło mi, że stop powinien się znaleźć na poziomie 29, ale umieściłem go o 7 centów wyżej (chodzi o ceny sprzed splitu).
+W moim dzienniku zanotowałem: „Rynek rósł od jakiegoś czasu, ale ta spółka za nim nie podążała. Dzienny zakres zmian zawęził się i obawiam się, że kurs spadnie i poniosę stratę. Dlaczego więc nie zacieśniam stopu? Bo chcę jednak dać szansę tej transakcji, chociaż zdaje mi się, że wzrostu nie będzie”.
+Podnosiłem stop dziesięć razy, niemal każdego dnia. 6 marca umieściłem go na poziomie 18,11. Napisałem wtedy: „To znacznie wyżej niż 18,88, czyli poziom stopu zmienności, ale dwie sesje temu zdarzył się dzień o dużym zakresie zmiany i wskaźnik CCI (commodity channel index) wygenerował sygnał sprzedaży. Dlatego zacieśniłem stop”.
+7 marca zanotowałem: „Zamknięcie było niższe i spodziewam się, że jutro na otwarciu wszyscy będą sprzedawać. Wcześniej zdarzało się, że kurs tej spółki spadać na otwarciu, a potem w ciągu dnia wydobywał się z dołka. Dziś tak nie było. Zamknięcie było niższe. Biorąc pod uwagę sygnał sprzedaży CCI sprzed trzech dni, sądzę, że trzeba ograniczyć do zera porcję zysku do oddania i po prostu sprzedać”.
+Sprzedałem następnego dnia po 19,95, czyli powyżej poziomu docelowego 19,59. Wcześniejsze maksimum wynosiło 21,17, czyli jednak oddałem część zysku. Gdyby kurs spadał dalej, tak jak się spodziewałem, zamknięcie pozycji byłoby prawie doskonałe. Ale rynek miał inne zdanie. Dzień, w którym [...]
+
+
+
+
+
+
+High & Tight Flag Study: Summary
+This study takes a closer look at the high and tight flag, to see what attributes result in the best performance and to update the statistics.
+
+High & Tight Flag Study: Methodology
+When I wrote my Encyclopedia of Chart Patterns book, I looked at each pattern multiple times to not only catalog its features, but to make sure it was a valid pattern. This study uses an automated approach. I consider it inferior to manually qualifying each pattern, but you can get substantially more samples. With careful programming, the results can be equally rewarding.
+
+Here is how I conducted the study.
+
+I used 1,018 stocks from January 1, 1995 to May 13, 2009. Some of them no longer trade or their price data has not been updated since I archived them. Of those stocks, 552 had high and tight flags, filling a spreadsheet with 2,588 non-overlapping patterns. In other words, I only logged a new high and tight flag after the prior one completed.
+Price had to rise at least 90% (from lowest low to highest high) and do so in less than 42 price bars (2 calendar months).
+The lowest low was at least $1. Stocks priced below $1 often are headed toward bankruptcy and are in danger of being delisted from the major exchanges. I did not want the pump-and-dump artists moving a stock from a penny to two and having that qualify as a high and tight flag. The average price at the start of the high and tight flag was $12.13, with the highest being JDS Uniphase at $596, and a median price of $6.11.
+No stock was allowed to qualify in one day. That excluded all stocks experiencing a large one-day price spike.
+To gauge the slope of the price data leading to the start of a high and tight flag, I used the slope of a line found with linear regression on the closing prices for one month (21 price bars) and two months (42 price bars) before the start of the high and tight flag.
+After the stock moved up by at least 90%, I allowed it to continue rising if it made a higher high. Once the highest high was found, I termed that the top of the flagpole. Then I counted the time it took to rise at least a penny above the top of the flag pole (a breakout, in other words). The time between the flagpole and breakout was the flag.
+Price tumbling below the low price at the start of the high and tight flag was deemed a failure.
+The ultimate high price is the highest high after the breakout and before price dropped by more than 20%, measured highest high to lowest low.
+After the breakout, a stock with a closing price below the low posted in the flag meant the search for the ultimate high had completed.
+The results were not split into bull and bear markets.
+All of that may sound complicated, but if you want to reproduce these results, it is best to know the complete story.
+
+Top of page More
+
+
+
+High & Tight Flag Study: Quick Results
+The results are manifold, but here are a few quick ones.
+
+It took an average of 36 calendar days to climb at least 90% (that is, the flagpole of the high and tight flag).
+The median rise was 102% with the average rise being 111% (this is the height of the flagpole)
+(1) In searching for the ultimate high, 18% of the patterns closed below the flag low.
+(2) 61% of the patterns found the ultimate high.
+14% had price drop below the start of the high and tight flag (meaning they broke out downward).
+7% of the patterns ran out of data (the high and tight flag occurred too recently) and were not used.
+The average rise was 27% for those in categories (1) and (2) above.
+The height of the flag averaged 26% of the breakout price (assuming a penny below the flag low as a stop price). In other words, using a penny below the flag low as a stop price meant taking an average 26% loss.
+For those 18% of patterns that hit the flag low on their way to the ultimate high, the loss averaged 10%.
+Top of page More
+
+
+
+High & Tight Flag Study: More Results
+The reason I started this study was to determine if the slope of price trending into the start of the high and tight flag had any bearing on the outcome. I contended that steep downtrends (like during the 2008 bear market) produced high and tight flags that failed. Here are the performance results.
+
+Slope	1 month slope	2 month slope
+Up	28%	30%
+Down	26%	24%
+Steep up	26%	28%
+Shallow up	34%	36%
+Steep down	23%	22%
+Shallow down	35%	27%
+In words, price that trended upward leading to the start of the high and tight flag, whether over one or two months, resulted in better performance than price trending downward.
+
+Patterns with shallow rises leading to the start of a high and tight flag resulted in better post breakout performance.
+
+I used a slope range between -0.1 and +0.1 and found that patterns with those slope values had gains averaging 33%. Patterns outside that range had gains averaging 24%. In other words, a flat base (or nearly so) leading to the start of the high and tight flag is a good thing.
+
+A picture of the four combinations of slope leading to a hight and tight flag.
+
+The chart makes the slope discussion clear. The red line is the high and tight flag, where price zips upward at least 90% in two months or less. The blue line is the inbound trend leading to the start of the hight and tight flag.
+
+In the upper left pane, we see a shallow inbound price trend leading to the start of the high and tight flag. If the slope lasts 1 month, then the high and tight flag tends to perform the best of the four combinations (an average rise of 35%, from the above table). If the slope lasts more than a month, performance is not as good (27% post breakout rise).
+
+The pane in the lower left quadrant shows the most likely trend, that of price moving upward but not too steeply before increasing in slope during the high and tight flag. The shallow uptrend gives the second best performance if the trend is one-month long (34%) and it gives the best performance if it is two months long (36%). It is the preferred setup.
+
+The two panes on the right side of the figure show the worst combinations, that of a steep inbound up or down trend. You should avoid trading high and tight flags with a steep drop or steep rise leading to the start of the high and tight flag. Of the two, the steep downtrend gives the worst performance (an average rise of 22% after the high and tight flag).
+
+Top of page More
+
+
+
+High & Tight Flag Study: Failure Rates
+Failure rate is another term for awful performance. I mentioned in the quick results that 14% of patterns failed to find an upward breakout. For those that did find an upward breakout, 19% failed to climb at least 5%. That gives a combined failure rate of 33%. Clearly waiting for a breakout cuts your chances of having a failure in half. The following table shows a frequency distribution of failures.
+
+Failure Bins:	5%	10%	15%	20%	25%	30%	35%	40%	45%	>45%	>100%
+Failure Rate:	19%	15%	11%	9%	7%	6%	4%	3%	4%	22%	6%
+For example, 19% of the patterns failed to show price climbing at least 5% after the breakout. At the right end of the table, 22% of the patterns had gains over 45%, but just 6% more than doubled in price after the high and tight flag completed. One more example: 4% of the patterns had price climb over 40% but less than or equal to 45%. That describes the third box on the right, lower row.
+
+Top of page More
+
+
+
+High & Tight Flag
+The following analysis pertains to the flag portion of the high and tight flag. The flag occurs after the flagpole and before the breakout. The flag drop referenced in the table is how far price dropped below the breakout price and the resulting rise of patterns qualifying. The days is the width of the flag and the resulting performance.
+
+Flag drop	%	Samples		Days	%	Samples
+0%	17%	105	0	18%	488
+5%	23%	361	5	29%	553
+10%	30%	437	10	37%	231
+15%	27%	354	15	32%	140
+20%	30%	225	20	19%	107
+25%	30%	163	25	59%	73
+30%	28%	130	30	28%	51
+35%	26%	88	35	39%	50
+40%	21%	79	40	20%	30
+45%	28%	46	45	47%	22
+50%	32%	28	50	42%	25
+55%	28%	19	55	34%	24
+60%	16%	5	60	24%	31
+65%	110%	1	65	35%	12
+For example, there were 105 flags that showed price drop from 0% to 5% below the breakout price. They resulted in gains averaging 17%. There were 488 patterns that had a flag width between 0 and 5 days, and they showed post breakout gains averaging 18%.
+
+What this table suggests is that high and tight flags with flags that retrace between 10% and 34% show the most promise. Flags that are between 10 and 29 calendar days wide also perform well. Ignore sample counts below 30 because they may be unreliable.
+
+-- Thomas Bulkowski
+
+
+
