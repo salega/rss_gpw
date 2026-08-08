@@ -9,9 +9,7 @@ import yfinance as yf
 from data import SWIG_80, MWIG_40, WIG_20, SP_500, RUSSELL_2000
 from formations.double_bottom import check_double_bottom_today
 from formations.flag import check_flag_breakout_today
-from formations.flat_base import check_flat_base_breakout_today
 from formations.nr7 import check_nr7_confirmed_today
-from formations.rectangle import check_rectangle_breakout_today_daily_scan
 from send_email import send_email
 from util import check_if_price_above_emas
 from util import get_max_value
@@ -24,9 +22,11 @@ DATE_TO_SIMULATE = None #datetime(2055, 10, 3)
 def get_last_year_price_data(company_abbr: str, market_suffix: str = ".WA"):
     end_date = DATE_TO_SIMULATE if DATE_TO_SIMULATE else datetime.today()
     start_date = end_date - timedelta(days=365 * 2)  # 2 lata — double bottom potrzebuje więcej historii
+    # yfinance end jest exclusive — dodajemy 1 dzień żeby end_date był włączony
+    download_end = end_date + timedelta(days=1)
 
     ticker_symbol = company_abbr + market_suffix
-    data = yf.download(ticker_symbol, start=start_date, end=end_date, progress=False, auto_adjust=True)
+    data = yf.download(ticker_symbol, start=start_date, end=download_end, progress=False, auto_adjust=True)
 
     if data is None or data.empty:
         return None
@@ -196,6 +196,18 @@ if __name__ == "__main__":
         company_abbr = ""
     else:
         company_abbr = input("\nPodaj skrót spółki lub puste: ").strip().upper()
+        if company_abbr:
+            market = input("GPW (tak/nie, domyślnie nie): ").strip().lower()
+            market_suffix = ".WA" if market in ("tak", "t", "y", "yes") else ""
+            result = calculate_potential(company_abbr, market_suffix=market_suffix)
+            if result:
+                print(format_potential(result))
+                print()
+                for k, v in result.items():
+                    print(f"  {k}: {v}")
+            else:
+                print("Brak danych lub brak sygnału")
+            import sys; sys.exit(0)
 
     if company_abbr == "":
         from data import ALL_US as _ALL_US
