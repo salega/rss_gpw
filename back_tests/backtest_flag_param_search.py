@@ -53,7 +53,7 @@ def download_history(company_abbr: str, start_date: datetime, end_date: datetime
             ticker_symbol,
             start=start_date,
             end=end_date,
-            auto_adjust=False,
+            auto_adjust=True,
             progress=False,
         )
     except Exception:
@@ -154,6 +154,70 @@ def max_drawdown_next_n_days(df: pd.DataFrame, event_idx: int, n_days: int) -> O
     event_close = float(df.iloc[event_idx]["Close"])
     min_low = float(future_window["Low"].min())
     return safe_pct_change(event_close, min_low)
+
+
+def trade_result_bulkowski_stop(df: pd.DataFrame, event_idx: int, flag_low: Optional[float],
+                                atr_multiplier: float = 2.0, atr_period: int = 14,
+                                weakening_days: int = 3) -> dict:
+    """
+    Strategia wyjścia "Bulkowski-style" — wychodzi gdy spełnione są 2 z 3 warunków:
+    1. Stop zmienności: Close < szczyt - atr_multiplier * ATR (ruchomy, tylko w górę)
+    2. Słabnięcie kursu: Close < Close sprzed weakening_days dni
+    3. Brak nowego szczytu od weakening_days dni z rzędu
+
+    Przy 1 warunku trzymasz. Przy 2+ wychodzisz na następnym Close.
+    flag_low chroni jako bezwarunkowy stop na początku.
+    """
+    entry_close = float(df.iloc[event_idx]["Close"])
+    future = df.iloc[event_idx + 1:]
+    if future.empty:
+        return {"result_pct": None, "sl_hit": False, "exit_price": entry_close}
+
+    initial_atr = calc_atr(df, event_idx, period=atr_period)
+    initial_stop = entry_close - atr_multiplier * initial_atr
+    if flag_low is not None:
+        initial_stop = max(initial_stop, flag_low)
+
+    current_stop = initial_stop
+    peak_price = entry_close
+    days_without_new_high = 0
+    closes: list[float] = [entry_close]
+
+    for i in range(len(future)):
+        future_idx = event_idx + 1 + i
+        close = float(future.iloc[i]["Close"])
+        atr = calc_atr(df, future_idx, period=atr_period)
+
+        # bezwarunkowy stop: flag_low
+        if flag_low is not None and close < flag_low:
+            result = safe_pct_change(entry_close, close)
+            return {"result_pct": result, "sl_hit": True, "exit_price": close}
+
+        # aktualizuj szczyt i dni bez nowego szczytu
+        if close > peak_price:
+            peak_price = close
+            days_without_new_high = 0
+        else:
+            days_without_new_high += 1
+
+        # przesuń stop zmienności w górę (nigdy w dół)
+        new_stop = close - atr_multiplier * atr
+        current_stop = max(current_stop, new_stop)
+
+        closes.append(close)
+
+        # sprawdź warunki wyjścia
+        cond1_atr_stop = close < current_stop
+        cond2_weakening = len(closes) > weakening_days and close < closes[-(weakening_days + 1)]
+        cond3_no_new_high = days_without_new_high >= weakening_days
+
+        signals_triggered = sum([cond1_atr_stop, cond2_weakening, cond3_no_new_high])
+
+        if signals_triggered >= 2:
+            result = safe_pct_change(entry_close, close)
+            return {"result_pct": result, "sl_hit": False, "exit_price": close}
+
+    return {"result_pct": None, "sl_hit": False, "exit_price": entry_close}
 
 
 def calc_atr(df: pd.DataFrame, idx: int, period: int = 14) -> float:
@@ -354,6 +418,9 @@ def backtest_flag_for_ticker(
         tr_atr = trade_result_trailing_atr(df, event_idx, flag_low, atr_multiplier=2.0, min_gain_to_activate=0.0)
         trailing_atr_result = tr_atr["result_pct"]
 
+        tr_bul = trade_result_bulkowski_stop(df, event_idx, flag_low, atr_multiplier=2.0)
+        bulkowski_stop_result = tr_bul["result_pct"]
+
         rows.append(
             {
                 "ticker": ticker,
@@ -366,6 +433,7 @@ def backtest_flag_for_ticker(
                 "actual_result_pct": actual_result_pct,
                 "trailing_10pct_result": trailing_10pct_result,  # trailing stop 10% od szczytu
                 "trailing_atr_result": trailing_atr_result,      # trailing stop 2*ATR (Bulkowski)
+                "bulkowski_stop_result": bulkowski_stop_result,  # stop zmienności jak Bulkowski (Close - 2*ATR, tylko w górę)
                 "change_5d_pct": close_change_after_n_days(df, event_idx, 5),
                 "change_10d_pct": close_change_after_n_days(df, event_idx, 10),
                 "change_20d_pct": close_change_after_n_days(df, event_idx, 20),
@@ -456,8 +524,9 @@ def summarize_results(results_df: pd.DataFrame, params: dict[str, Any]) -> dict[
 
     metric_columns = [
         "actual_result_pct",       # idealny szczyt (spadek 20%) lub SL
-        "trailing_10pct_result",   # trailing stop 10% od szczytu
-        "trailing_atr_result",     # trailing stop 2*ATR (Bulkowski)
+        "trailing_10pct_result",   # trailing stop 20% od szczytu
+        "trailing_atr_result",     # trailing stop 2*ATR od szczytu
+        "bulkowski_stop_result",   # stop zmienności jak Bulkowski
         "change_5d_pct",
         "change_10d_pct",
         "change_20d_pct",
@@ -510,9 +579,9 @@ def print_top_configs(summary_df: pd.DataFrame, top_n: int = 10) -> None:
         "tickers_count",
         "actual_result_pct_avg",
         "trailing_10pct_result_avg",
-        "trailing_atr_result_avg",
-        "trailing_atr_result_median",
-        "trailing_atr_result_positive_rate",
+        "bulkowski_stop_result_avg",
+        "bulkowski_stop_result_median",
+        "bulkowski_stop_result_positive_rate",
         "stop_loss_hit_rate",
     ]
 
@@ -523,15 +592,30 @@ def print_top_configs(summary_df: pd.DataFrame, top_n: int = 10) -> None:
 
 
 def main() -> None:
-    start_date = datetime(1985, 1, 1)  # Bulkowski: od stycznia 1985
-    end_date = datetime(2026, 1, 1)    # Bulkowski: do stycznia 2011
-    market = "NYSE"
+    # ============================================================
+    # KONFIGURACJA — zmień tylko tę jedną linię żeby przełączyć rynek
+    MARKET = "NYSE"   # "NYSE" lub "GPW"
+    # ============================================================
+
+    if MARKET == "NYSE":
+        from data import ALL_US as tickers
+        start_date = datetime(1985, 1, 1)   # Bulkowski: styczeń 1985
+        end_date = datetime(2011, 1, 1)     # Bulkowski: styczeń 2011
+    elif MARKET == "GPW":
+        from data import ALL as tickers
+        start_date = datetime(1991, 1, 1)   # GPW: początki giełdy
+        end_date = datetime.today()
+    else:
+        raise ValueError(f"Nieznany rynek: {MARKET}")
+
+    market = MARKET
     market_suffix = MARKET_SUFFIXES[market]
 
+    print(f"Rynek: {MARKET} | Okres: {start_date.date()} → {end_date.date()}")
     print("Ładowanie danych z cache / dociąganie braków...")
     history_map: dict[str, pd.DataFrame] = {}
 
-    for ticker in ALL_US:
+    for ticker in tickers:
         print(f"Ładowanie: {ticker}")
         df = get_history_with_cache(
             ticker,
@@ -589,7 +673,7 @@ def main() -> None:
                     print(
                         f"  {ticker} | {pd.Timestamp(row['date']).strftime('%Y-%m-%d')} | "
                         f"close={row['close_event']:.2f} | {sl_str} | "
-                        f"wynik={emoji}{result_str} | trail20={fmt(trailing)} | trailATR={fmt(row.get('trailing_atr_result'))} | max20d={fmt(max20)} | "
+                        f"wynik={emoji}{result_str} | trail20={fmt(trailing)} | bulSL={fmt(row.get('bulkowski_stop_result'))} | max20d={fmt(max20)} | "
                         f"{row['signal']} | {ticker_idx}/{total_tickers}"
                     )
 

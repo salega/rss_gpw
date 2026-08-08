@@ -19,7 +19,7 @@ def download_history(company_abbr: str, start_date: datetime, end_date: datetime
             company_abbr + ".WA",
             start=start_date,
             end=end_date,
-            auto_adjust=False,
+            auto_adjust=True,
             progress=False,
             )
     except Exception:

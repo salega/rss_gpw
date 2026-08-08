@@ -175,6 +175,176 @@ def max_drawdown_next_n_days(df: pd.DataFrame, event_idx: int, n_days: int) -> f
 
 
 # ---------------------------------------------------------------------------
+# Symulacje transakcji (identyczne jak w backtest_flag_param_search.py)
+# Stop-loss = cena L2 (najniższe dno formacji) — odpowiednik flag_low
+# ---------------------------------------------------------------------------
+
+def calc_atr(df: pd.DataFrame, idx: int, period: int = 14) -> float:
+    start = max(0, idx - period)
+    window = df.iloc[start: idx + 1]
+    if len(window) < 2:
+        return float(df.iloc[idx]["High"]) - float(df.iloc[idx]["Low"])
+    true_ranges = []
+    for i in range(1, len(window)):
+        high = float(window.iloc[i]["High"])
+        low  = float(window.iloc[i]["Low"])
+        prev_close = float(window.iloc[i - 1]["Close"])
+        tr = max(high - low, abs(high - prev_close), abs(low - prev_close))
+        true_ranges.append(tr)
+    return sum(true_ranges) / len(true_ranges)
+
+
+def trade_result(df: pd.DataFrame, event_idx: int, stop_price: float | None,
+                 drawdown_threshold: float = 0.20) -> dict:
+    """
+    Bulkowski: trzymaj pozycję do pierwszego ze zdarzeń:
+    1. Low < stop_price (L2)  → stop-loss, wynik = zmiana do stop_price
+    2. Spadek ≥20% od szczytu → zamknij na szczycie (ultimate high)
+    """
+    entry_close = float(df.iloc[event_idx]["Close"])
+    future = df.iloc[event_idx + 1:]
+    if future.empty:
+        return {"result_pct": None, "sl_hit": False, "peak_price": entry_close}
+
+    peak_price = entry_close
+    for i in range(len(future)):
+        high = float(future.iloc[i]["High"])
+        low  = float(future.iloc[i]["Low"])
+
+        # SL zawsze ma priorytet — sprawdzamy przed drawdown trigger
+        if stop_price is not None and low < stop_price:
+            return {"result_pct": safe_pct_change(entry_close, stop_price), "sl_hit": True, "peak_price": peak_price}
+
+        if high > peak_price:
+            peak_price = high
+
+        # 20% drawdown od szczytu — tylko gdy peak wyrósł powyżej entry
+        # Jeśli peak == entry (cena nigdy nie urosła), nie traktujemy tego jako "ultimate high"
+        if peak_price > entry_close and (peak_price - low) / peak_price >= drawdown_threshold:
+            return {"result_pct": safe_pct_change(entry_close, peak_price), "sl_hit": False, "peak_price": peak_price}
+
+    return {"result_pct": None, "sl_hit": False, "peak_price": peak_price}
+
+
+def trade_result_trailing_stop(df: pd.DataFrame, event_idx: int, stop_price: float | None,
+                                trailing_pct: float = 0.20, min_gain_to_activate: float = 0.0,
+                                initial_stop_pct: float = 0.20) -> dict:
+    """Trailing stop: initial stop = entry*(1-initial_stop_pct), po +min_gain trailing = peak*(1-trailing_pct)."""
+    entry_close = float(df.iloc[event_idx]["Close"])
+    future = df.iloc[event_idx + 1:]
+    if future.empty:
+        return {"result_pct": None, "sl_hit": False, "exit_price": entry_close}
+
+    peak_price = entry_close
+    trailing_active = False
+    initial_stop = entry_close * (1 - initial_stop_pct)
+    effective_stop = max(initial_stop, stop_price) if stop_price is not None else initial_stop
+
+    for i in range(len(future)):
+        high = float(future.iloc[i]["High"])
+        low  = float(future.iloc[i]["Low"])
+
+        if not trailing_active:
+            if low < effective_stop:
+                return {"result_pct": safe_pct_change(entry_close, effective_stop), "sl_hit": True, "exit_price": effective_stop}
+        else:
+            if stop_price is not None and low < stop_price:
+                return {"result_pct": safe_pct_change(entry_close, stop_price), "sl_hit": True, "exit_price": stop_price}
+
+        if high > peak_price:
+            peak_price = high
+
+        if not trailing_active and peak_price >= entry_close * (1 + min_gain_to_activate):
+            trailing_active = True
+
+        if trailing_active:
+            trailing_stop = peak_price * (1 - trailing_pct)
+            if low < trailing_stop:
+                return {"result_pct": safe_pct_change(entry_close, trailing_stop), "sl_hit": False, "exit_price": trailing_stop}
+
+    return {"result_pct": None, "sl_hit": False, "exit_price": entry_close}
+
+
+def trade_result_trailing_atr(df: pd.DataFrame, event_idx: int, stop_price: float | None,
+                               atr_multiplier: float = 2.0, atr_period: int = 14) -> dict:
+    """Trailing stop = peak - atr_multiplier * ATR. stop_price (L2) ma zawsze priorytet."""
+    entry_close = float(df.iloc[event_idx]["Close"])
+    future = df.iloc[event_idx + 1:]
+    if future.empty:
+        return {"result_pct": None, "sl_hit": False, "exit_price": entry_close}
+
+    peak_price = entry_close
+    for i in range(len(future)):
+        future_idx = event_idx + 1 + i
+        high = float(future.iloc[i]["High"])
+        low  = float(future.iloc[i]["Low"])
+
+        if stop_price is not None and low < stop_price:
+            return {"result_pct": safe_pct_change(entry_close, stop_price), "sl_hit": True, "exit_price": stop_price}
+
+        if high > peak_price:
+            peak_price = high
+
+        atr = calc_atr(df, future_idx, period=atr_period)
+        trailing_stop = peak_price - atr_multiplier * atr
+        if low < trailing_stop:
+            return {"result_pct": safe_pct_change(entry_close, trailing_stop), "sl_hit": False, "exit_price": trailing_stop}
+
+    return {"result_pct": None, "sl_hit": False, "exit_price": entry_close}
+
+
+def trade_result_bulkowski_stop(df: pd.DataFrame, event_idx: int, stop_price: float | None,
+                                 atr_multiplier: float = 2.0, atr_period: int = 14,
+                                 weakening_days: int = 3) -> dict:
+    """
+    Bulkowski: wyjdź gdy spełnione są 2 z 3 warunków:
+    1. Close < szczyt - atr_multiplier*ATR (ruchomy stop, tylko w górę)
+    2. Close < Close sprzed weakening_days
+    3. Brak nowego szczytu przez weakening_days z rzędu
+    """
+    entry_close = float(df.iloc[event_idx]["Close"])
+    future = df.iloc[event_idx + 1:]
+    if future.empty:
+        return {"result_pct": None, "sl_hit": False, "exit_price": entry_close}
+
+    initial_atr = calc_atr(df, event_idx, period=atr_period)
+    current_stop = entry_close - atr_multiplier * initial_atr
+    if stop_price is not None:
+        current_stop = max(current_stop, stop_price)
+
+    peak_price = entry_close
+    days_without_new_high = 0
+    closes: list[float] = [entry_close]
+
+    for i in range(len(future)):
+        future_idx = event_idx + 1 + i
+        close = float(future.iloc[i]["Close"])
+        atr = calc_atr(df, future_idx, period=atr_period)
+
+        if stop_price is not None and close < stop_price:
+            return {"result_pct": safe_pct_change(entry_close, close), "sl_hit": True, "exit_price": close}
+
+        if close > peak_price:
+            peak_price = close
+            days_without_new_high = 0
+        else:
+            days_without_new_high += 1
+
+        new_stop = close - atr_multiplier * atr
+        current_stop = max(current_stop, new_stop)
+        closes.append(close)
+
+        cond1 = close < current_stop
+        cond2 = len(closes) > weakening_days and close < closes[-(weakening_days + 1)]
+        cond3 = days_without_new_high >= weakening_days
+
+        if sum([cond1, cond2, cond3]) >= 2:
+            return {"result_pct": safe_pct_change(entry_close, close), "sl_hit": False, "exit_price": close}
+
+    return {"result_pct": None, "sl_hit": False, "exit_price": entry_close}
+
+
+# ---------------------------------------------------------------------------
 # Siatka parametrów
 # ---------------------------------------------------------------------------
 
@@ -189,27 +359,52 @@ def build_param_sets() -> list[dict[str, Any]]:
     - require_downtrend=True : formacja musi być poprzedzona trendem spadkowym
     - check_volume=True      : wyższy wolumen na lewym dnie (Bulkowski: "usually higher on left")
     """
+    # TRYB: jedna konfiguracja do szybkiego testowania
+    # Żeby uruchomić 36 kombinacji, zamień na siatke poniżej (zakomentuj/odkomentuj)
     return [
         {
             "local_min_order": 5,
             "min_separation_days": 10,
             "max_separation_days": 70,
-            "max_bottom_diff_pct": 0.03,   # Bulkowski avg 2%, toleruje do ~3%
-            "min_peak_rise_pct": 0.19,     # Bulkowski median 19%
+            "max_bottom_diff_pct": 0.03,
+            "min_peak_rise_pct": 0.17,
             "require_downtrend": True,
             "check_volume": False,
+            "_min_downtrend_pct": 0.15,
         }
     ]
+
+    # TRYB: siatka 36 kombinacji (odkomentuj żeby uruchomić)
+    # max_separation_days_values = [70, 100]
+    # max_bottom_diff_pct_values = [0.03, 0.04, 0.05]
+    # min_peak_rise_pct_values   = [0.15, 0.17, 0.19]
+    # min_downtrend_pct_values   = [0.10, 0.15]
+    # param_sets: list[dict[str, Any]] = []
+    # for max_sep, max_diff, min_rise, min_down in product(
+    #     max_separation_days_values,
+    #     max_bottom_diff_pct_values,
+    #     min_peak_rise_pct_values,
+    #     min_downtrend_pct_values,
+    # ):
+    #     param_sets.append({
+    #         "local_min_order": 5,
+    #         "min_separation_days": 10,
+    #         "max_separation_days": max_sep,
+    #         "max_bottom_diff_pct": max_diff,
+    #         "min_peak_rise_pct": min_rise,
+    #         "require_downtrend": True,
+    #         "check_volume": False,
+    #         "_min_downtrend_pct": min_down,
+    #     })
+    # return param_sets
 
 
 def param_set_label(params: dict[str, Any]) -> str:
     return (
-        f"ord={params['local_min_order']}_"
         f"sep={params['min_separation_days']}-{params['max_separation_days']}_"
         f"diff={params['max_bottom_diff_pct']}_"
         f"rise={params['min_peak_rise_pct']}_"
-        f"down={int(params['require_downtrend'])}_"
-        f"vol={int(params['check_volume'])}"
+        f"down={params.get('_min_downtrend_pct', 0.15)}"
     )
 
 
@@ -237,6 +432,7 @@ def backtest_double_bottom_for_ticker(
         max_bottom_diff_pct=params["max_bottom_diff_pct"],
         min_peak_rise_pct=params["min_peak_rise_pct"],
         require_downtrend=params["require_downtrend"],
+        min_downtrend_pct=params.get("_min_downtrend_pct", 0.15),
         check_volume=params["check_volume"],
     )
 
@@ -249,34 +445,49 @@ def backtest_double_bottom_for_ticker(
             event_idx = df.index.get_loc(event_date)
         except KeyError:
             continue
+        # get_loc może zwrócić int, numpy.int64, slice lub array — normalizujemy do int
+        if isinstance(event_idx, slice):
+            event_idx = event_idx.start
+        elif hasattr(event_idx, '__index__'):
+            event_idx = int(event_idx)
         if not isinstance(event_idx, int):
             continue
+
+        # Bulkowski: "place stop slightly below the lower of the two bottoms"
+        l1_price = sig.get("left_trough_price")
+        l2_price = sig.get("right_trough_price")
+        if l1_price is not None and l2_price is not None:
+            stop_price = float(min(l1_price, l2_price)) * 0.99  # "slightly below"
+        else:
+            stop_price = None
+
+        entry_price = float(df.iloc[event_idx]["Close"])
+
+        # Bulkowski's method: hold to ultimate high (first 20% drawdown from peak) or stop-loss
+        tr = trade_result(df, event_idx, stop_price, drawdown_threshold=0.20)
 
         rows.append(
             {
                 "ticker": ticker,
                 "date": event_date,
-                "close_event": float(df.iloc[event_idx]["Close"]),
+                "close_event": entry_price,
                 "signal": sig["signal"],
                 "pattern_type": sig.get("pattern_type"),
                 "left_trough_date": sig.get("left_trough_date"),
                 "right_trough_date": sig.get("right_trough_date"),
                 "peak_date": sig.get("peak_date"),
-                "left_trough_price": sig.get("left_trough_price"),
-                "right_trough_price": sig.get("right_trough_price"),
+                "left_trough_price": l1_price,
+                "right_trough_price": l2_price,
                 "peak_price": sig.get("peak_price"),
+                "confirmation_price": sig.get("confirmation_price"),
                 "separation_days": sig.get("separation_days"),
                 "peak_rise_pct": sig.get("peak_rise_pct"),
                 "bottom_diff_pct": sig.get("bottom_diff_pct"),
-                "change_3d_pct": close_change_after_n_days(df, event_idx, 3),
-                "change_5d_pct": close_change_after_n_days(df, event_idx, 5),
-                "change_10d_pct": close_change_after_n_days(df, event_idx, 10),
-                "change_20d_pct": close_change_after_n_days(df, event_idx, 20),
-                "change_50d_pct": close_change_after_n_days(df, event_idx, 50),
-                "max_gain_10d_pct": max_gain_next_n_days(df, event_idx, 10),
-                "max_gain_20d_pct": max_gain_next_n_days(df, event_idx, 20),
-                "max_drawdown_5d_pct": max_drawdown_next_n_days(df, event_idx, 5),
-                "max_drawdown_10d_pct": max_drawdown_next_n_days(df, event_idx, 10),
+                "stop_price": stop_price,
+                # Bulkowski: zysk do ultimate high lub strata do SL
+                "result_pct": tr["result_pct"],
+                "sl_hit": tr["sl_hit"],
+                "peak_reached": tr.get("peak_price"),
             }
         )
 
@@ -295,26 +506,33 @@ def summarize_results(results: pd.DataFrame, params: dict[str, Any]) -> dict[str
         "tickers": int(results["ticker"].nunique()) if not results.empty else 0,
     }
 
-    metrics = [
-        "change_3d_pct",
-        "change_5d_pct",
-        "change_10d_pct",
-        "change_20d_pct",
-        "change_50d_pct",
-        "max_gain_10d_pct",
-        "max_gain_20d_pct",
-        "max_drawdown_5d_pct",
-        "max_drawdown_10d_pct",
-    ]
-    for metric in metrics:
-        series = results[metric].dropna() if not results.empty else pd.Series(dtype=float)
-        summary[f"{metric}_count"] = int(series.shape[0])
-        summary[f"{metric}_avg"] = float(series.mean()) if not series.empty else None
-        summary[f"{metric}_median"] = float(series.median()) if not series.empty else None
-        if "drawdown" in metric:
-            summary[f"{metric}_win_rate"] = float((series > -3.0).mean() * 100.0) if not series.empty else None
+    # Bulkowski: jedyna metryka to wynik do ultimate high (spadek 20%) lub SL
+    series = results["result_pct"].dropna() if (not results.empty and "result_pct" in results.columns) else pd.Series(dtype=float)
+    summary["result_pct_count"]   = int(series.shape[0])
+    summary["result_pct_avg"]     = float(series.mean())   if not series.empty else None
+    summary["result_pct_median"]  = float(series.median()) if not series.empty else None
+    summary["result_pct_win_rate"] = float((series > 0).mean() * 100.0) if not series.empty else None
+
+    if not results.empty and "sl_hit" in results.columns:
+        sl = results["sl_hit"].dropna()
+        summary["sl_hit_rate"] = float(sl.mean() * 100.0) if not sl.empty else None
+
+        # Bulkowski liczy avg rise tylko dla successful breakouts (bez SL)
+        # To jest bezpośrednio porównywalne z jego +40%
+        if "result_pct" in results.columns:
+            successful = results.loc[results["sl_hit"] == False, "result_pct"].dropna()
+            summary["result_pct_avg_no_sl"]    = float(successful.mean())   if not successful.empty else None
+            summary["result_pct_median_no_sl"] = float(successful.median()) if not successful.empty else None
+            summary["result_pct_count_no_sl"]  = int(successful.shape[0])
         else:
-            summary[f"{metric}_win_rate"] = float((series > 0).mean() * 100.0) if not series.empty else None
+            summary["result_pct_avg_no_sl"]    = None
+            summary["result_pct_median_no_sl"] = None
+            summary["result_pct_count_no_sl"]  = None
+    else:
+        summary["sl_hit_rate"]             = None
+        summary["result_pct_avg_no_sl"]    = None
+        summary["result_pct_median_no_sl"] = None
+        summary["result_pct_count_no_sl"]  = None
 
     return summary
 
@@ -331,45 +549,17 @@ def print_top_configs(summary_df: pd.DataFrame) -> None:
     filtered = summary_df.loc[summary_df["trades"] >= 5].copy()
     if filtered.empty:
         filtered = summary_df.copy()
-
+    # Bulkowski: jedyna metryka — wynik do ultimate high lub SL
     cols = [
-        "config",
-        "trades",
-        "tickers",
-        "change_5d_pct_avg",
-        "change_5d_pct_median",
-        "change_5d_pct_win_rate",
-        "change_10d_pct_avg",
-        "change_10d_pct_median",
-        "change_10d_pct_win_rate",
-        "change_20d_pct_avg",
-        "change_20d_pct_median",
-        "change_20d_pct_win_rate",
-        "change_50d_pct_avg",
-        "change_50d_pct_median",
-        "change_50d_pct_win_rate",
-        "max_gain_10d_pct_avg",
-        "max_gain_20d_pct_avg",
-        "max_drawdown_5d_pct_avg",
-        "max_drawdown_10d_pct_avg",
+        "config", "trades", "tickers",
+        "result_pct_avg", "result_pct_median", "result_pct_win_rate",
+        "result_pct_count", "sl_hit_rate",
+        # Bezpośrednio porównywalne z Bulkowskim (+40% = tylko successful)
+        "result_pct_avg_no_sl", "result_pct_median_no_sl", "result_pct_count_no_sl",
     ]
-
-    for sort_col in [
-        "change_5d_pct_avg",
-        "change_10d_pct_avg",
-        "change_20d_pct_avg",
-        "change_50d_pct_avg",
-        "max_gain_10d_pct_avg",
-        "max_gain_20d_pct_avg",
-    ]:
-        print(f"\nTOP konfiguracje wg {sort_col}:")
-        print(filtered.sort_values(sort_col, ascending=False)[cols].head(15).to_string(index=False))
-
-    print("\nTOP konfiguracje wg najmniejszego obsunięcia 5d:")
-    print(filtered.sort_values("max_drawdown_5d_pct_avg", ascending=False)[cols].head(15).to_string(index=False))
-
-    print("\nTOP konfiguracje wg najmniejszego obsunięcia 10d:")
-    print(filtered.sort_values("max_drawdown_10d_pct_avg", ascending=False)[cols].head(15).to_string(index=False))
+    available = [c for c in cols if c in filtered.columns]
+    print("\nWyniki wg Bulkowskiego (ultimate high, stop = niższe z den):")
+    print(filtered.sort_values("result_pct_avg", ascending=False)[available].head(20).to_string(index=False))
 
 
 # ---------------------------------------------------------------------------
@@ -470,18 +660,17 @@ def main() -> None:
                 bo_price = row["close_event"]
                 ptype    = row.get("pattern_type", "?")
                 sep      = row.get("separation_days", "?")
+                sl_str = "🔴SL" if row.get("sl_hit") else "🟢ok"
+                result = row.get("result_pct")
+                emoji  = "✅" if result is not None and result > 0 else "❌"
+                stop_dist = ((row["stop_price"] / bo_price) - 1) * 100 if row.get("stop_price") and bo_price else None
                 print(
                     f"  📈 {ticker}  [{ptype}]  sep={sep}d\n"
-                    f"     📉 L1      {l1_date}  @ {l1_price:.2f}\n"
-                    f"     🔝 Neck    {nk_date}  @ {nk_price:.2f}  (rise={fmt(row.get('peak_rise_pct'))})\n"
-                    f"     📉 L2      {l2_date}  @ {l2_price:.2f}  (diff={fmt(row.get('bottom_diff_pct'))})\n"
-                    f"     🚀 Breakout {bo_date}  @ {bo_price:.2f}\n"
-                    f"     📊 Wyniki:  5d={fmt(row.get('change_5d_pct'))}  "
-                    f"10d={fmt(row.get('change_10d_pct'))}  "
-                    f"20d={fmt(row.get('change_20d_pct'))}  "
-                    f"50d={fmt(row.get('change_50d_pct'))}  "
-                    f"max20d={fmt(row.get('max_gain_20d_pct'))}  "
-                    f"dd10={fmt(row.get('max_drawdown_10d_pct'))}\n"
+                    f"     📉 L1       {l1_date}  @ {l1_price:.2f}\n"
+                    f"     🔝 Neck     {nk_date}  @ {nk_price:.2f}  (rise={fmt(row.get('peak_rise_pct'))})\n"
+                    f"     📉 L2       {l2_date}  @ {l2_price:.2f}  (diff={fmt(row.get('bottom_diff_pct'))})\n"
+                    f"     🚀 Breakout {bo_date}  @ {bo_price:.2f}  stop={fmt(stop_dist)} od entry\n"
+                    f"     {sl_str} {emoji}  wynik={fmt(result)}\n"
                 )
 
                 all_detail_rows.append({"config": label, **params, **row})
@@ -498,8 +687,7 @@ def main() -> None:
         print()
 
     summary_df = pd.DataFrame(all_summary_rows).sort_values(
-        ["change_10d_pct_avg", "change_20d_pct_avg", "change_50d_pct_avg",
-         "max_gain_10d_pct_avg", "max_gain_20d_pct_avg"],
+        ["result_pct_avg", "result_pct_median", "result_pct_win_rate"],
         ascending=False,
         na_position="last",
     ).reset_index(drop=True)

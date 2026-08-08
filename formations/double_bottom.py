@@ -148,7 +148,7 @@ def find_double_bottom_signals(
     max_separation_days: int = 70,      # max odstęp (≈14 tygodni, Bulkowski typowy zakres 2–7 tyg)
     max_bottom_diff_pct: float = 0.06,  # max różnica wysokości dołków (6%)
     # --- szczyt między dołkami ---
-    min_peak_rise_pct: float = 0.10,    # min wzrost od dna do szczytu (10%)
+    min_peak_rise_pct: float = 0.17,    # min wzrost od dna do szczytu (17%, kompromis między min 10% a medianą 19%)
     # --- trend poprzedzający (długi: 60 sesji) ---
     require_downtrend: bool = True,
     downtrend_lookback: int = 60,
@@ -260,6 +260,20 @@ def find_double_bottom_signals(
             )
             if require_downtrend and not prior_down:
                 continue
+
+            # ── Filtr: L1 musi być nowym minimum w oknie lookback ──
+            # Bulkowski: "tall left side, steep decline, few or no consolidations"
+            # L1 musi być najniższym Low w oknie downtrend_lookback sesji przed nim.
+            # Jeśli przed L1 było niższe dno, to L1 jest tylko odbiciem od głębszego
+            # minimum — nie jest prawdziwym dnem trendu spadkowego.
+            # Nie stosujemy tolerancji procentowej — L1 musi być ściśle najniższym Low.
+            if require_downtrend:
+                lb_start = max(0, left_idx - downtrend_lookback)
+                prior_lows = wdf["Low"].values[lb_start: left_idx]
+                if len(prior_lows) > 0:
+                    prior_min_low = float(prior_lows.min())
+                    if prior_min_low < left_low:
+                        continue
 
             # ── Filtr 4: stromy zjazd tuż przed L1 (Bulkowski "Big W / steep decline into L1") ──
             # W oknie `drop_into_l1_lookback` sesji przed L1 cena musi spaść o min min_drop_into_l1
