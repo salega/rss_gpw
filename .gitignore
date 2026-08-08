@@ -1,0 +1,13 @@
+# Cache danych historycznych (duże pliki .pkl)
+back_tests/cache/
+
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+.DS_Store
+
+# Wirtualne środowisko
+.venv/
+venv/
+env/

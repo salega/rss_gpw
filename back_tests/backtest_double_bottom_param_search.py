@@ -1,147 +1,280 @@
+"""
+Backtest parametryczny formacji podwójnego dna (Bulkowski Eve & Eve / Adam & Adam …)
+Analogiczny do backtest_flat_base_param_search.py.
+
+Uruchomienie:
+    python back_tests/backtest_double_bottom_param_search.py
+
+Wyniki (CSV) trafiają do back_tests/reports/.
+"""
+
 from __future__ import annotations
 
-from time import perf_counter
-from datetime import datetime, timedelta
+from datetime import datetime
 from itertools import product
-from typing import Any, Optional
+from pathlib import Path
+from typing import Any
 
 import pandas as pd
 import yfinance as yf
 
-from data import ALL
-from formations.double_bottom import find_double_bottoms
+from data import ALL, MARKET_SUFFIXES
+from formations.double_bottom import find_double_bottom_signals
 
 
-def download_history(company_abbr: str, start_date: datetime, end_date: datetime) -> pd.DataFrame:
-    try:
-        df = yf.download(
-            company_abbr + ".WA",
-            start=start_date,
-            end=end_date,
-            auto_adjust=False,
-            progress=False,
-            )
-    except Exception:
-        return pd.DataFrame()
+# ---------------------------------------------------------------------------
+# Cache (identyczny mechanizm jak w backtest_flag_param_search.py)
+# ---------------------------------------------------------------------------
 
+CACHE_DIR = Path("/Users/pl8000269/IdeaProjects/rss_gpw/back_tests/cache")
+CACHE_FILE_SUFFIX = ".pkl"
+REQUIRED_COLUMNS = ["Open", "High", "Low", "Close"]
+OPTIONAL_COLUMNS = ["Volume"]
+
+
+def normalize_history_df(df: pd.DataFrame, ticker_symbol: str) -> pd.DataFrame:
     if df is None or df.empty:
         return pd.DataFrame()
 
     if isinstance(df.columns, pd.MultiIndex):
-        df = df.xs(company_abbr + ".WA", axis=1, level=-1)
+        try:
+            df = df.xs(ticker_symbol, axis=1, level=-1)
+        except (KeyError, IndexError):
+            return pd.DataFrame()
 
-    required = {"Open", "High", "Low", "Close"}
-    if not required.issubset(set(df.columns)):
+    if "Date" in df.columns:
+        df = df.set_index("Date")
+
+    if not isinstance(df.index, pd.DatetimeIndex):
+        df.index = pd.to_datetime(df.index, errors="coerce")
+
+    df = df[~pd.isna(df.index)]
+
+    if not set(REQUIRED_COLUMNS).issubset(set(df.columns)):
         return pd.DataFrame()
 
-    return df[["Open", "High", "Low", "Close"]].dropna().sort_index()
+    cols_to_keep = REQUIRED_COLUMNS + [c for c in OPTIONAL_COLUMNS if c in df.columns]
+    normalized = df[cols_to_keep].dropna(subset=REQUIRED_COLUMNS).sort_index().copy()
+    normalized.index = pd.DatetimeIndex(normalized.index).normalize()
+    normalized = normalized[~normalized.index.duplicated(keep="last")]
+    return normalized
 
 
-def safe_pct_change(base_value: float, new_value: float) -> Optional[float]:
+def download_history(
+    company_abbr: str,
+    start_date: datetime,
+    end_date: datetime,
+    market_suffix: str = ".WA",
+) -> pd.DataFrame:
+    ticker_symbol = company_abbr + market_suffix
+    try:
+        df = yf.download(
+            ticker_symbol,
+            start=start_date,
+            end=end_date,
+            auto_adjust=True,
+            progress=False,
+        )
+    except Exception:
+        return pd.DataFrame()
+
+    return normalize_history_df(df, ticker_symbol)
+
+
+def get_cache_file_path(market: str, ticker: str) -> Path:
+    return CACHE_DIR / market / f"{ticker}{CACHE_FILE_SUFFIX}"
+
+
+def load_cached_history(market: str, ticker: str) -> pd.DataFrame:
+    cache_path = get_cache_file_path(market, ticker)
+    if not cache_path.exists():
+        return pd.DataFrame()
+
+    try:
+        df = pd.read_pickle(cache_path)
+    except Exception:
+        return pd.DataFrame()
+
+    if "Date" in df.columns:
+        df = df.set_index("Date")
+
+    df.index = pd.to_datetime(df.index)
+    return normalize_history_df(df, ticker)
+
+
+def save_cached_history(market: str, ticker: str, df: pd.DataFrame) -> None:
+    cache_path = get_cache_file_path(market, ticker)
+    cache_path.parent.mkdir(parents=True, exist_ok=True)
+    df.to_pickle(cache_path)
+
+
+def get_history_with_cache(
+    company_abbr: str,
+    start_date: datetime,
+    end_date: datetime,
+    market: str,
+    market_suffix: str = ".WA",
+) -> pd.DataFrame:
+    requested_start = pd.Timestamp(start_date).normalize()
+    requested_end = pd.Timestamp(end_date).normalize()
+
+    cached_df = load_cached_history(market, company_abbr)
+
+    if cached_df.empty:
+        downloaded_df = download_history(
+            company_abbr,
+            requested_start.to_pydatetime(),
+            (requested_end + pd.Timedelta(days=1)).to_pydatetime(),
+            market_suffix=market_suffix,
+        )
+        if downloaded_df.empty or not isinstance(downloaded_df.index, pd.DatetimeIndex):
+            return pd.DataFrame(columns=REQUIRED_COLUMNS)
+
+        save_cached_history(market, company_abbr, downloaded_df)
+        return downloaded_df.loc[
+            (downloaded_df.index >= requested_start) & (downloaded_df.index <= requested_end)
+        ]
+
+    if not isinstance(cached_df.index, pd.DatetimeIndex):
+        return pd.DataFrame(columns=REQUIRED_COLUMNS)
+
+    return cached_df.loc[
+        (cached_df.index >= requested_start) & (cached_df.index <= requested_end)
+    ].copy()
+
+
+# ---------------------------------------------------------------------------
+# Metryki
+# ---------------------------------------------------------------------------
+
+def safe_pct_change(base_value: float, new_value: float) -> float | None:
     if pd.isna(base_value) or pd.isna(new_value) or base_value == 0:
         return None
     return (float(new_value) / float(base_value) - 1.0) * 100.0
 
 
-def close_change_after_n_days(df: pd.DataFrame, event_idx: int, n_days: int) -> Optional[float]:
+def close_change_after_n_days(df: pd.DataFrame, event_idx: int, n_days: int) -> float | None:
     target_idx = event_idx + n_days
     if target_idx >= len(df):
         return None
-
-    event_close = float(df.iloc[event_idx]["Close"])
-    target_close = float(df.iloc[target_idx]["Close"])
-    return safe_pct_change(event_close, target_close)
+    return safe_pct_change(float(df.iloc[event_idx]["Close"]), float(df.iloc[target_idx]["Close"]))
 
 
-def max_gain_next_n_days(df: pd.DataFrame, event_idx: int, n_days: int) -> Optional[float]:
-    future_window = df.iloc[event_idx + 1:event_idx + 1 + n_days]
-    if future_window.empty:
+def max_gain_next_n_days(df: pd.DataFrame, event_idx: int, n_days: int) -> float | None:
+    window = df.iloc[event_idx + 1: event_idx + 1 + n_days]
+    if window.empty:
         return None
-
-    event_close = float(df.iloc[event_idx]["Close"])
-    max_high = float(future_window["High"].max())
-    return safe_pct_change(event_close, max_high)
+    return safe_pct_change(float(df.iloc[event_idx]["Close"]), float(window["High"].max()))
 
 
-def max_drawdown_next_n_days(df: pd.DataFrame, event_idx: int, n_days: int) -> Optional[float]:
-    future_window = df.iloc[event_idx + 1:event_idx + 1 + n_days]
-    if future_window.empty:
+def max_drawdown_next_n_days(df: pd.DataFrame, event_idx: int, n_days: int) -> float | None:
+    window = df.iloc[event_idx + 1: event_idx + 1 + n_days]
+    if window.empty:
         return None
+    return safe_pct_change(float(df.iloc[event_idx]["Close"]), float(window["Low"].min()))
 
-    event_close = float(df.iloc[event_idx]["Close"])
-    min_low = float(future_window["Low"].min())
-    return safe_pct_change(event_close, min_low)
 
+# ---------------------------------------------------------------------------
+# Siatka parametrów
+# ---------------------------------------------------------------------------
+
+def build_param_sets() -> list[dict[str, Any]]:
+    """
+    Jedna konfiguracja bazowa wg Bulkowskiego (Eve & Eve identification guidelines):
+    - local_min_order=5      : okno 5 sesji po każdej stronie dla wykrycia lokalnego dołka
+    - min_separation_days=10 : min ~2 tygodnie między dołkami
+    - max_separation_days=105: max ~5 miesięcy (Bulkowski: avg 2 miesiące, dopuszcza więcej)
+    - max_bottom_diff_pct=0.06: max 6% różnicy cen dołków (Bulkowski: avg 2%, toleruje do ~6%)
+    - min_peak_rise_pct=0.10 : min 10% wzrost między dołkami (Bulkowski: avg 26%, min 10%)
+    - require_downtrend=True : formacja musi być poprzedzona trendem spadkowym
+    - check_volume=True      : wyższy wolumen na lewym dnie (Bulkowski: "usually higher on left")
+    """
+    return [
+        {
+            "local_min_order": 5,
+            "min_separation_days": 10,
+            "max_separation_days": 70,
+            "max_bottom_diff_pct": 0.03,   # Bulkowski avg 2%, toleruje do ~3%
+            "min_peak_rise_pct": 0.19,     # Bulkowski median 19%
+            "require_downtrend": True,
+            "check_volume": False,
+        }
+    ]
+
+
+def param_set_label(params: dict[str, Any]) -> str:
+    return (
+        f"ord={params['local_min_order']}_"
+        f"sep={params['min_separation_days']}-{params['max_separation_days']}_"
+        f"diff={params['max_bottom_diff_pct']}_"
+        f"rise={params['min_peak_rise_pct']}_"
+        f"down={int(params['require_downtrend'])}_"
+        f"vol={int(params['check_volume'])}"
+    )
+
+
+# ---------------------------------------------------------------------------
+# Backtest jednego tickera
+# ---------------------------------------------------------------------------
 
 def backtest_double_bottom_for_ticker(
-        ticker: str,
-        df: pd.DataFrame,
-        params: dict[str, Any],
+    ticker: str,
+    df: pd.DataFrame,
+    params: dict[str, Any],
 ) -> list[dict[str, Any]]:
     rows: list[dict[str, Any]] = []
 
-    if df.empty or len(df) < 40:
+    min_bars = params["local_min_order"] * 2 + params["min_separation_days"] + 20
+    if df.empty or len(df) < min_bars:
         return rows
 
-    prices = df.to_dict(orient="index")
-    signals = find_double_bottoms(
-        prices=prices,
-        company_abbr=ticker,
-        **params,
+    # Skanuj cały df jednorazowo — O(n), nie O(n²)
+    signals = find_double_bottom_signals(
+        df=df,
+        local_min_order=params["local_min_order"],
+        min_separation_days=params["min_separation_days"],
+        max_separation_days=params["max_separation_days"],
+        max_bottom_diff_pct=params["max_bottom_diff_pct"],
+        min_peak_rise_pct=params["min_peak_rise_pct"],
+        require_downtrend=params["require_downtrend"],
+        check_volume=params["check_volume"],
     )
 
     if not signals:
         return rows
 
-    seen_breakout_dates: set[pd.Timestamp] = set()
-
-    for signal_row in signals:
-        event_date = pd.Timestamp(signal_row["breakout_date"])
-        if event_date in seen_breakout_dates:
+    for sig in signals:
+        event_date = pd.Timestamp(sig["date"])
+        try:
+            event_idx = df.index.get_loc(event_date)
+        except KeyError:
             continue
-        seen_breakout_dates.add(event_date)
-
-        event_idx_raw = signal_row.get("breakout_idx")
-        if isinstance(event_idx_raw, int):
-            event_idx = event_idx_raw
-        else:
-            try:
-                event_idx = df.index.get_loc(event_date)
-            except KeyError:
-                continue
-
-            if not isinstance(event_idx, int):
-                continue
+        if not isinstance(event_idx, int):
+            continue
 
         rows.append(
             {
                 "ticker": ticker,
                 "date": event_date,
                 "close_event": float(df.iloc[event_idx]["Close"]),
-                "signal": (
-                    f"🆆 {pd.Timestamp(signal_row['l1_date']).strftime('%Y-%m-%d')} / "
-                    f"{pd.Timestamp(signal_row['l2_date']).strftime('%Y-%m-%d')} | "
-                    f"neck={float(signal_row['neckline']):.2f} | "
-                    f"target~{float(signal_row['target']):.2f}"
-                ),
-                "l1_date": pd.Timestamp(signal_row["l1_date"]),
-                "l2_date": pd.Timestamp(signal_row["l2_date"]),
-                "neckline_date": pd.Timestamp(signal_row["neckline_date"]),
-                "breakout_date": event_date,
-                "l1_price": float(signal_row["l1_price"]),
-                "l2_price": float(signal_row["l2_price"]),
-                "neckline": float(signal_row["neckline"]),
-                "breakout_close": float(signal_row["breakout_close"]),
-                "target": float(signal_row["target"]),
-                "bottom_diff": float(signal_row["bottom_diff"]),
-                "rise": float(signal_row["rise"]),
-                "score": float(signal_row["score"]),
+                "signal": sig["signal"],
+                "pattern_type": sig.get("pattern_type"),
+                "left_trough_date": sig.get("left_trough_date"),
+                "right_trough_date": sig.get("right_trough_date"),
+                "peak_date": sig.get("peak_date"),
+                "left_trough_price": sig.get("left_trough_price"),
+                "right_trough_price": sig.get("right_trough_price"),
+                "peak_price": sig.get("peak_price"),
+                "separation_days": sig.get("separation_days"),
+                "peak_rise_pct": sig.get("peak_rise_pct"),
+                "bottom_diff_pct": sig.get("bottom_diff_pct"),
                 "change_3d_pct": close_change_after_n_days(df, event_idx, 3),
                 "change_5d_pct": close_change_after_n_days(df, event_idx, 5),
                 "change_10d_pct": close_change_after_n_days(df, event_idx, 10),
                 "change_20d_pct": close_change_after_n_days(df, event_idx, 20),
+                "change_50d_pct": close_change_after_n_days(df, event_idx, 50),
+                "max_gain_10d_pct": max_gain_next_n_days(df, event_idx, 10),
                 "max_gain_20d_pct": max_gain_next_n_days(df, event_idx, 20),
-                "max_gain_40d_pct": max_gain_next_n_days(df, event_idx, 40),
                 "max_drawdown_5d_pct": max_drawdown_next_n_days(df, event_idx, 5),
                 "max_drawdown_10d_pct": max_drawdown_next_n_days(df, event_idx, 10),
             }
@@ -150,199 +283,156 @@ def backtest_double_bottom_for_ticker(
     return rows
 
 
-def build_param_sets() -> list[dict[str, Any]]:
-    # Lokalny tuning wokół najlepszego obszaru z raportu 2026-07-05_19-34-00: 96 kombinacji.
-    pivot_left_values = [3]
-    pivot_right_values = [3]
-    min_days_between_bottoms_values = [10]
-    max_days_between_bottoms_values = [120]
-    max_bottom_price_diff_values = [0.03, 0.04]
-    min_neckline_rise_values = [0.06, 0.07]
-    min_neckline_rise_from_higher_bottom_values = [0.05, 0.06]
-    neckline_min_pos_ratio_values = [0.20]
-    breakout_buffer_atr_values = [0.10]
-    breakout_days_after_l2_ratio_values = [0.45, 0.50, 0.55]
-    max_breakout_distance_above_neckline_values = [0.01]
-    min_drop_into_l1_values = [0.05, 0.06]
-    forbid_close_near_bottoms_max_above_values = [0.01, 0.012]
-    require_downtrend_before_l1_values = [True]
-    require_drop_into_l1_values = [True]
-    forbid_any_pivot_low_between_values = [True]
-    forbid_new_min_after_l2_before_breakout_values = [True]
+# ---------------------------------------------------------------------------
+# Podsumowanie wyników
+# ---------------------------------------------------------------------------
 
-    param_sets: list[dict[str, Any]] = []
-
-    for (
-            pivot_left,
-            pivot_right,
-            min_days_between_bottoms,
-            max_days_between_bottoms,
-            max_bottom_price_diff,
-            min_neckline_rise,
-            min_neckline_rise_from_higher_bottom,
-            neckline_min_pos_ratio,
-            breakout_buffer_atr,
-            breakout_days_after_l2_ratio,
-            max_breakout_distance_above_neckline,
-            min_drop_into_l1,
-            forbid_close_near_bottoms_max_above,
-            require_downtrend_before_l1,
-            require_drop_into_l1,
-            forbid_any_pivot_low_between,
-            forbid_new_min_after_l2_before_breakout,
-    ) in product(
-        pivot_left_values,
-        pivot_right_values,
-        min_days_between_bottoms_values,
-        max_days_between_bottoms_values,
-        max_bottom_price_diff_values,
-        min_neckline_rise_values,
-        min_neckline_rise_from_higher_bottom_values,
-        neckline_min_pos_ratio_values,
-        breakout_buffer_atr_values,
-        breakout_days_after_l2_ratio_values,
-        max_breakout_distance_above_neckline_values,
-        min_drop_into_l1_values,
-        forbid_close_near_bottoms_max_above_values,
-        require_downtrend_before_l1_values,
-        require_drop_into_l1_values,
-        forbid_any_pivot_low_between_values,
-        forbid_new_min_after_l2_before_breakout_values,
-    ):
-        param_sets.append(
-            {
-                "pivot_left": pivot_left,
-                "pivot_right": pivot_right,
-                "min_days_between_bottoms": min_days_between_bottoms,
-                "max_days_between_bottoms": max_days_between_bottoms,
-                "max_bottom_price_diff": max_bottom_price_diff,
-                "min_neckline_rise": min_neckline_rise,
-                "min_neckline_rise_from_higher_bottom": min_neckline_rise_from_higher_bottom,
-                "neckline_min_pos_ratio": neckline_min_pos_ratio,
-                "breakout_buffer_atr": breakout_buffer_atr,
-                "atr_period": 14,
-                "require_downtrend_before_l1": require_downtrend_before_l1,
-                "downtrend_ma_period": 50,
-                "require_drop_into_l1": require_drop_into_l1,
-                "drop_into_l1_lookback_days": 30,
-                "min_drop_into_l1": min_drop_into_l1,
-                "max_l1_close_vs_recent_high": 0.97,
-                "max_l1_close_vs_recent_avg": 0.98,
-                "max_breakout_days_after_l2": 60,
-                "breakout_days_after_l2_ratio": breakout_days_after_l2_ratio,
-                "breakout_days_after_l2_min": 5,
-                "breakout_days_after_l2_max": 40,
-                "max_breakout_distance_above_neckline": max_breakout_distance_above_neckline,
-                "forbid_close_below_bottoms_between": True,
-                "forbid_close_below_bottoms_tolerance": 0.0,
-                "forbid_close_near_bottoms_between": True,
-                "forbid_close_near_bottoms_max_above": forbid_close_near_bottoms_max_above,
-                "near_bottoms_exclude_days_after_l1": 3,
-                "near_bottoms_exclude_days_before_l2": 3,
-                "forbid_low_below_bottoms_between": True,
-                "forbid_low_below_bottoms_tolerance": 0.0,
-                "low_below_exclude_days_after_l1": 3,
-                "low_below_exclude_days_before_l2": 3,
-                "forbid_any_pivot_low_between": forbid_any_pivot_low_between,
-                "pivot_low_between_exclude_days_after_l1": 3,
-                "pivot_low_between_exclude_days_before_l2": 3,
-                "forbid_new_min_after_l2_before_breakout": forbid_new_min_after_l2_before_breakout,
-                "new_min_after_l2_exclude_days": 0,
-                "new_min_after_l2_tolerance": 0.0,
-            }
-        )
-
-    return param_sets
-
-
-def param_set_label(params: dict[str, Any]) -> str:
-    return (
-        f"pivot={params['pivot_left']}/{params['pivot_right']}"
-        f"_days={params['min_days_between_bottoms']}-{params['max_days_between_bottoms']}"
-        f"_diff={params['max_bottom_price_diff']}"
-        f"_neck={params['min_neckline_rise']}"
-        f"_neck_h={params['min_neckline_rise_from_higher_bottom']}"
-        f"_neck_pos={params['neckline_min_pos_ratio']}"
-        f"_atr={params['breakout_buffer_atr']}"
-        f"_bo_ratio={params['breakout_days_after_l2_ratio']}"
-        f"_bo_ext={params['max_breakout_distance_above_neckline']}"
-        f"_drop_l1={params['min_drop_into_l1']}"
-        f"_mid_close={params['forbid_close_near_bottoms_max_above']}"
-    )
-
-
-def summarize_results(results_df: pd.DataFrame, params: dict[str, Any]) -> dict[str, Any]:
+def summarize_results(results: pd.DataFrame, params: dict[str, Any]) -> dict[str, Any]:
     summary: dict[str, Any] = {
-        **params,
         "config": param_set_label(params),
-        "signals_count": int(len(results_df)),
-        "tickers_count": int(results_df["ticker"].nunique()) if not results_df.empty else 0,
+        **{k: params[k] for k in params},
+        "trades": len(results),
+        "tickers": int(results["ticker"].nunique()) if not results.empty else 0,
     }
 
-    metric_columns = [
+    metrics = [
         "change_3d_pct",
         "change_5d_pct",
         "change_10d_pct",
         "change_20d_pct",
+        "change_50d_pct",
+        "max_gain_10d_pct",
         "max_gain_20d_pct",
-        "max_gain_40d_pct",
         "max_drawdown_5d_pct",
         "max_drawdown_10d_pct",
     ]
-
-    if results_df.empty:
-        for col in metric_columns:
-            summary[f"{col}_avg"] = None
-            summary[f"{col}_median"] = None
-            summary[f"{col}_positive_rate"] = None
-        return summary
-
-    for col in metric_columns:
-        series = pd.to_numeric(results_df[col], errors="coerce").dropna()
-        if series.empty:
-            summary[f"{col}_avg"] = None
-            summary[f"{col}_median"] = None
-            summary[f"{col}_positive_rate"] = None
+    for metric in metrics:
+        series = results[metric].dropna() if not results.empty else pd.Series(dtype=float)
+        summary[f"{metric}_count"] = int(series.shape[0])
+        summary[f"{metric}_avg"] = float(series.mean()) if not series.empty else None
+        summary[f"{metric}_median"] = float(series.median()) if not series.empty else None
+        if "drawdown" in metric:
+            summary[f"{metric}_win_rate"] = float((series > -3.0).mean() * 100.0) if not series.empty else None
         else:
-            summary[f"{col}_avg"] = float(series.mean())
-            summary[f"{col}_median"] = float(series.median())
-            summary[f"{col}_positive_rate"] = float((series > 0).mean() * 100.0)
+            summary[f"{metric}_win_rate"] = float((series > 0).mean() * 100.0) if not series.empty else None
 
     return summary
 
 
-def print_top_configs(summary_df: pd.DataFrame, top_n: int = 10) -> None:
+# ---------------------------------------------------------------------------
+# Wyświetlanie rankingu konfiguracji
+# ---------------------------------------------------------------------------
+
+def print_top_configs(summary_df: pd.DataFrame) -> None:
     if summary_df.empty:
-        print("Brak wyników do wyświetlenia.")
+        print("Brak wyników do porównania.")
         return
+
+    filtered = summary_df.loc[summary_df["trades"] >= 5].copy()
+    if filtered.empty:
+        filtered = summary_df.copy()
 
     cols = [
         "config",
-        "signals_count",
-        "tickers_count",
+        "trades",
+        "tickers",
+        "change_5d_pct_avg",
+        "change_5d_pct_median",
+        "change_5d_pct_win_rate",
+        "change_10d_pct_avg",
+        "change_10d_pct_median",
+        "change_10d_pct_win_rate",
+        "change_20d_pct_avg",
+        "change_20d_pct_median",
+        "change_20d_pct_win_rate",
+        "change_50d_pct_avg",
+        "change_50d_pct_median",
+        "change_50d_pct_win_rate",
+        "max_gain_10d_pct_avg",
+        "max_gain_20d_pct_avg",
+        "max_drawdown_5d_pct_avg",
+        "max_drawdown_10d_pct_avg",
+    ]
+
+    for sort_col in [
         "change_5d_pct_avg",
         "change_10d_pct_avg",
         "change_20d_pct_avg",
+        "change_50d_pct_avg",
+        "max_gain_10d_pct_avg",
         "max_gain_20d_pct_avg",
-        "max_drawdown_5d_pct_avg",
-    ]
+    ]:
+        print(f"\nTOP konfiguracje wg {sort_col}:")
+        print(filtered.sort_values(sort_col, ascending=False)[cols].head(15).to_string(index=False))
 
-    available_cols = [col for col in cols if col in summary_df.columns]
+    print("\nTOP konfiguracje wg najmniejszego obsunięcia 5d:")
+    print(filtered.sort_values("max_drawdown_5d_pct_avg", ascending=False)[cols].head(15).to_string(index=False))
 
-    print("TOP konfiguracje:")
-    print(summary_df[available_cols].head(top_n).to_string(index=False))
+    print("\nTOP konfiguracje wg najmniejszego obsunięcia 10d:")
+    print(filtered.sort_values("max_drawdown_10d_pct_avg", ascending=False)[cols].head(15).to_string(index=False))
 
+
+# ---------------------------------------------------------------------------
+# Równoległa pętla po konfiguracjach
+# ---------------------------------------------------------------------------
+
+def _run_single_config(
+    args: tuple[dict[str, Any], dict[str, pd.DataFrame]],
+) -> tuple[dict[str, Any], list[dict[str, Any]], list[dict[str, Any]]]:
+    params, history_map = args
+    label = param_set_label(params)
+
+    config_rows: list[dict[str, Any]] = []
+    config_detail_rows: list[dict[str, Any]] = []
+
+    for ticker, df in history_map.items():
+        rows = backtest_double_bottom_for_ticker(ticker=ticker, df=df, params=params)
+        for row in rows:
+            config_detail_rows.append({"config": label, **params, **row})
+        config_rows.extend(rows)
+
+    summary = summarize_results(pd.DataFrame(config_rows), params)
+    return summary, config_detail_rows, config_rows
+
+
+# ---------------------------------------------------------------------------
+# Główna funkcja
+# ---------------------------------------------------------------------------
 
 def main() -> None:
-    end_date = datetime.today()
-    start_date = end_date - timedelta(days=365 * 34 + 60)
+    # ============================================================
+    # KONFIGURACJA
+    MARKET = "NYSE"          # "GPW" lub "NYSE"
+    TEST_TICKERS: list[str] | None = None  # None = wszystkie; ["LLY"] = tylko ten ticker
+    # ============================================================
 
-    print("Pobieranie danych tylko raz...")
+    if MARKET == "GPW":
+        all_tickers = ALL
+        start_date = datetime(2013, 1, 1)
+        end_date = datetime(2026, 5, 1)
+    elif MARKET == "NYSE":
+        from data import ALL_US as all_tickers
+        start_date = datetime(1985, 1, 1)
+        end_date = datetime(2011, 1, 1)   # Bulkowski: styczeń 1985 – styczeń 2011
+    else:
+        raise ValueError(f"Nieznany rynek: {MARKET}")
+
+    tickers = TEST_TICKERS if TEST_TICKERS is not None else all_tickers
+    market_suffix = MARKET_SUFFIXES.get(MARKET, ".WA")
+
+    print(f"Rynek: {MARKET} | Okres: {start_date.date()} → {end_date.date()}")
+    print("Ładowanie danych z cache / dociąganie braków...")
     history_map: dict[str, pd.DataFrame] = {}
 
-    for ticker in ALL:
-        print(f"Pobieranie: {ticker}")
-        df = download_history(ticker, start_date, end_date)
+    for ticker in tickers:
+        print(f"Ładowanie: {ticker}")
+        df = get_history_with_cache(
+            ticker,
+            start_date=start_date,
+            end_date=end_date,
+            market=MARKET,
+            market_suffix=market_suffix,
+        )
         if not df.empty:
             history_map[ticker] = df
 
@@ -354,60 +444,62 @@ def main() -> None:
     all_summary_rows: list[dict[str, Any]] = []
     all_detail_rows: list[dict[str, Any]] = []
 
-    total_tickers = len(history_map)
+    def fmt(v: Any) -> str:
+        if v is None or (isinstance(v, float) and pd.isna(v)):
+            return "n/a"
+        return f"{float(v):.1f}%"
 
     for idx, params in enumerate(param_sets, start=1):
         label = param_set_label(params)
-        print(f"[{idx}/{len(param_sets)}] Test konfiguracji: {label}")
+        print(f"[{idx}/{len(param_sets)}] Konfiguracja: {label}")
+        print()
 
-        config_start = perf_counter()
         config_rows: list[dict[str, Any]] = []
 
-        for ticker_idx, (ticker, df) in enumerate(history_map.items(), start=1):
-            ticker_start = perf_counter()
-
-            rows = backtest_double_bottom_for_ticker(
-                ticker=ticker,
-                df=df,
-                params=params,
-            )
-
-            ticker_elapsed = perf_counter() - ticker_start
-            config_elapsed = perf_counter() - config_start
-
-            if rows:
-                for row in rows:
-                    print(
-                        f"  {ticker} | breakout={pd.Timestamp(row['date']).strftime('%Y-%m-%d')} | "
-                        f"close={row['close_event']:.2f} | score={row['score']:.4f} | "
-                        f"ticker_time={ticker_elapsed:.2f}s | config_time={config_elapsed:.2f}s "
-                        f"| progress={ticker_idx}/{total_tickers}"
-                    )
+        for ticker, df in history_map.items():
+            rows = backtest_double_bottom_for_ticker(ticker=ticker, df=df, params=params)
 
             for row in rows:
-                all_detail_rows.append(
-                    {
-                        "config": label,
-                        **params,
-                        **row,
-                    }
+                l1_date  = pd.Timestamp(row["left_trough_date"]).strftime("%Y-%m-%d")
+                l2_date  = pd.Timestamp(row["right_trough_date"]).strftime("%Y-%m-%d")
+                nk_date  = pd.Timestamp(row["peak_date"]).strftime("%Y-%m-%d")
+                bo_date  = pd.Timestamp(row["date"]).strftime("%Y-%m-%d")
+                l1_price = row["left_trough_price"]
+                l2_price = row["right_trough_price"]
+                nk_price = row["peak_price"]
+                bo_price = row["close_event"]
+                ptype    = row.get("pattern_type", "?")
+                sep      = row.get("separation_days", "?")
+                print(
+                    f"  📈 {ticker}  [{ptype}]  sep={sep}d\n"
+                    f"     📉 L1      {l1_date}  @ {l1_price:.2f}\n"
+                    f"     🔝 Neck    {nk_date}  @ {nk_price:.2f}  (rise={fmt(row.get('peak_rise_pct'))})\n"
+                    f"     📉 L2      {l2_date}  @ {l2_price:.2f}  (diff={fmt(row.get('bottom_diff_pct'))})\n"
+                    f"     🚀 Breakout {bo_date}  @ {bo_price:.2f}\n"
+                    f"     📊 Wyniki:  5d={fmt(row.get('change_5d_pct'))}  "
+                    f"10d={fmt(row.get('change_10d_pct'))}  "
+                    f"20d={fmt(row.get('change_20d_pct'))}  "
+                    f"50d={fmt(row.get('change_50d_pct'))}  "
+                    f"max20d={fmt(row.get('max_gain_20d_pct'))}  "
+                    f"dd10={fmt(row.get('max_drawdown_10d_pct'))}\n"
                 )
+
+                all_detail_rows.append({"config": label, **params, **row})
 
             config_rows.extend(rows)
 
-        results_df = pd.DataFrame(config_rows)
-        all_summary_rows.append(summarize_results(results_df, params))
-
-        total_config_elapsed = perf_counter() - config_start
+        print()
+        summary = summarize_results(pd.DataFrame(config_rows), params)
+        all_summary_rows.append(summary)
         print(
-            f"  Zakończono konfigurację: {label} | "
-            f"signals={len(config_rows)} | "
-            f"time={total_config_elapsed:.2f}s"
+            f"[{idx}/{len(param_sets)}] Zakończono: {label} | "
+            f"signals={len(config_rows)} | tickers={summary['tickers']}"
         )
         print()
 
     summary_df = pd.DataFrame(all_summary_rows).sort_values(
-        ["change_5d_pct_avg", "change_10d_pct_avg", "max_gain_20d_pct_avg"],
+        ["change_10d_pct_avg", "change_20d_pct_avg", "change_50d_pct_avg",
+         "max_gain_10d_pct_avg", "max_gain_20d_pct_avg"],
         ascending=False,
         na_position="last",
     ).reset_index(drop=True)
@@ -417,14 +509,9 @@ def main() -> None:
         details_df = details_df.sort_values(["config", "ticker", "date"]).reset_index(drop=True)
 
     timestamp = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
-    summary_path = (
-        f"/Users/pl8000269/IdeaProjects/rss_gpw/back_tests/reports/"
-        f"double_bottom_param_search_summary_{timestamp}.csv"
-    )
-    details_path = (
-        f"/Users/pl8000269/IdeaProjects/rss_gpw/back_tests/reports/"
-        f"double_bottom_param_search_details_{timestamp}.csv"
-    )
+    reports_dir = "/Users/pl8000269/IdeaProjects/rss_gpw/back_tests/reports"
+    summary_path = f"{reports_dir}/double_bottom_param_search_summary_{MARKET}_{timestamp}.csv"
+    details_path = f"{reports_dir}/double_bottom_param_search_details_{MARKET}_{timestamp}.csv"
 
     summary_df.to_csv(summary_path, index=False)
     details_df.to_csv(details_path, index=False)

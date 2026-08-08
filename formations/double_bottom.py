@@ -1,436 +1,464 @@
+"""
+Detekcja formacji podwójnego dna (Eve & Eve / Adam & Adam / Eve & Adam / Adam & Eve)
+wg Thomasa Bulkowskiego (Encyclopedia of Chart Patterns, Swing and Day Trading).
+
+Reguły identyfikacji (Eve & Eve jako bazowa, wspólna dla wszystkich wariantów):
+- Poprzedzający trend spadkowy
+- Dwa wyraźne dołki na zbliżonym poziomie cenowym (różnica ≤ max_bottom_diff_pct, domyślnie 6%)
+- Wzrost między dołkami ≥ min_peak_rise_pct (domyślnie 10%)
+- Odstęp między dołkami: min_separation_days … max_separation_days (domyślnie 2–20 tygodni)
+- Wariant dna:
+    Adam = wąski, spiczasty dołek (mało świec w obrębie minimum, jeden dominujący szpikułec)
+    Eve  = szeroki, zaokrąglony dołek (dużo świec na podobnym poziomie, krótkie szpikułce)
+- Potwierdzenie = zamknięcie powyżej szczytu między dołkami (linia potwierdzenia)
+- Wolumen zazwyczaj wyższy na lewym dnie (sprawdzany opcjonalnie)
+"""
+
 from __future__ import annotations
 
-from dataclasses import dataclass
-from typing import Dict, Optional, List, Tuple
+from typing import Dict, List, Optional, Tuple
 
+import numpy as np
 import pandas as pd
 
 
-@dataclass(frozen=True)
-class _Pivot:
-    idx: int
-    ts: pd.Timestamp
-    price: float
+# ---------------------------------------------------------------------------
+# Helpers
+# ---------------------------------------------------------------------------
+
+def _prepare_df(df: pd.DataFrame) -> pd.DataFrame:
+    required = {"Close", "High", "Low"}
+    if not required.issubset(df.columns):
+        return pd.DataFrame()
+    cols = [c for c in ["Open", "High", "Low", "Close", "Volume"] if c in df.columns]
+    return df[cols].dropna(subset=["Close", "High", "Low"]).sort_index()
 
 
-def _find_pivot_lows(df: pd.DataFrame, left: int, right: int) -> List[_Pivot]:
+def _classify_bottom(df: pd.DataFrame, trough_idx: int, window: int = 5) -> str:
     """
-    Pivot low: Low w dniu i jest najniższe w oknie [i-left, i+right].
+    Klasyfikuj dno jako 'Adam' lub 'Eve'.
+
+    Adam: wąski, spiczasty – mało świec wewnątrz okna leży blisko minimum,
+          dominuje jeden długi cień dolny (szpikułec).
+    Eve:  szeroki, zaokrąglony – dużo świec blisko minimum, cienie krótkie.
+
+    Parametr `window` to połowa szerokości okna po obu stronach trough_idx.
     """
-    lows = df["Low"].astype(float).values
-    pivots: List[_Pivot] = []
     n = len(df)
+    lo = max(0, trough_idx - window)
+    hi = min(n - 1, trough_idx + window)
+    slice_df = df.iloc[lo: hi + 1]
 
-    for i in range(left, n - right):
-        window = lows[i - left:i + right + 1]
+    trough_low = float(df.iloc[trough_idx]["Low"])
+    if trough_low <= 0:
+        return "Eve"
+
+    # Ile świec ma Low w obrębie 3% minimum?
+    proximity_threshold = trough_low * 1.03
+    near_bottom_count = int((slice_df["Low"] <= proximity_threshold).sum())
+
+    # Długość dolnego cienia dominującej świecy (szpikułec)
+    if "Open" in df.columns:
+        body_lows = df.iloc[lo: hi + 1].apply(
+            lambda r: min(float(r["Open"]), float(r["Close"])), axis=1
+        )
+    else:
+        body_lows = slice_df["Close"]
+
+    shadow_lengths = slice_df["Low"] - body_lows
+    max_shadow = float(shadow_lengths.min())  # min bo Low < body_low → wartości ujemne
+    avg_shadow = float(shadow_lengths.mean())
+
+    # Adam: wąski dołek — dominuje jeden szpikułec LUB mało świec blisko dna.
+    # Warunki są rozłączne (OR), nie łączne — wystarczy spełnić jeden z nich.
+    spike_ratio = max_shadow / avg_shadow if avg_shadow != 0 else 1.0
+    sharp_spike = spike_ratio < 0.4          # jeden cień wyraźnie dłuższy od średniej
+    narrow_base = near_bottom_count <= 3     # co najwyżej 3 świece blisko minimum w oknie ±5
+    if sharp_spike or narrow_base:
+        return "Adam"
+    return "Eve"
+
+
+def _find_local_minima(
+    df: pd.DataFrame,
+    order: int = 5,
+    min_depth_pct: float = 0.01,  # dołek musi być co najmniej 1% niżej od średniej okna
+) -> List[int]:
+    """
+    Znajdź lokalne minima (Low) z marginesem `order` świec po każdej stronie.
+
+    Dwa warunki muszą być spełnione łącznie:
+    1. lows[i] jest ściśle mniejsze od WSZYSTKICH sąsiadów w oknie (nie tylko <=).
+       Eliminuje płaskie konsolidacje gdzie kilka dni ma identyczny Low.
+    2. lows[i] jest co najmniej min_depth_pct% niżej od średniej Low w oknie.
+       Wymaga wyraźnego, izolowanego dna — nie fragmentu poziomej bazy.
+    """
+    lows = df["Low"].values
+    n = len(lows)
+    minima: List[int] = []
+    for i in range(order, n - order):
+        window = lows[i - order: i + order + 1]
         cur = lows[i]
-        if cur == window.min():
-            pivots.append(_Pivot(i, df.index[i], float(cur)))
 
-    return pivots
+        # Warunek 1: ściśle mniejszy od wszystkich pozostałych w oknie
+        others = [lows[j] for j in range(i - order, i + order + 1) if j != i]
+        if any(cur >= other for other in others):
+            continue
+
+        # Warunek 2: wyraźnie poniżej średniej okna (prawdziwy dołek, nie konsolidacja)
+        avg_window = float(sum(window) / len(window))
+        if avg_window <= 0 or (avg_window - cur) / avg_window < min_depth_pct:
+            continue
+
+        minima.append(i)
+    return minima
 
 
-def _max_high_between(df: pd.DataFrame, i: int, j: int) -> Tuple[int, float]:
+def _find_prior_downtrend(
+    df: pd.DataFrame,
+    left_trough_idx: int,
+    lookback: int = 60,
+    min_decline_pct: float = 0.10,
+) -> bool:
     """
-    Zwraca (idx, high) maksymalnego High w przedziale (i, j) (bez końców).
+    Sprawdź czy przed lewym dnem był trend spadkowy ≥ min_decline_pct.
+    Patrzymy wstecz max `lookback` świec od lewego dna.
     """
-    if j <= i + 1:
-        return i, float(df.iloc[i]["High"])
-
-    segment = df.iloc[i + 1:j]
-    highs = segment["High"].astype(float)
-    k = int(highs.values.argmax())
-    idx = (i + 1) + k
-    return idx, float(highs.iloc[k])
-
-
-def _atr_approx(df: pd.DataFrame, period: int) -> pd.Series:
-    """
-    Przybliżony ATR (Wilder-style nie jest konieczny do filtrów; wystarczy SMA TR).
-    """
-    high = df["High"].astype(float)
-    low = df["Low"].astype(float)
-    close = df["Close"].astype(float)
-
-    prev_close = close.shift(1)
-    tr = (high - low).abs()
-    tr = pd.concat(
-        [
-            tr,
-            (high - prev_close).abs(),
-            (low - prev_close).abs(),
-        ],
-        axis=1,
-    ).max(axis=1)
-
-    return tr.rolling(period, min_periods=max(2, period // 2)).mean()
+    start = max(0, left_trough_idx - lookback)
+    window = df.iloc[start: left_trough_idx + 1]
+    if len(window) < 5:
+        return False
+    peak_close = float(window["Close"].max())
+    trough_low = float(df.iloc[left_trough_idx]["Low"])
+    if peak_close <= 0:
+        return False
+    decline = (peak_close - trough_low) / peak_close
+    return decline >= min_decline_pct
 
 
-def find_double_bottoms(
-        prices: Dict[pd.Timestamp, Dict[str, float]],
-        company_abbr: Optional[str] = None,
-        pivot_left: int = 3,
-        pivot_right: int = 3,
-        min_days_between_bottoms: int = 10,
-        max_days_between_bottoms: int = 120,
-        max_bottom_price_diff: float = 0.03,
-        min_neckline_rise: float = 0.06,
-        min_neckline_rise_from_higher_bottom: float = 0.05,
-        neckline_min_pos_ratio: float = 0.20,
-        breakout_buffer_atr: float = 0.10,
-        atr_period: int = 14,
-        require_downtrend_before_l1: bool = True,
-        downtrend_ma_period: int = 50,
-        require_drop_into_l1: bool = True,
-        drop_into_l1_lookback_days: int = 30,
-        min_drop_into_l1: float = 0.05,
-        max_l1_close_vs_recent_high: float = 0.97,
-        max_l1_close_vs_recent_avg: float = 0.98,
-        max_breakout_days_after_l2: int = 60,
-        breakout_days_after_l2_ratio: float = 0.45,
-        breakout_days_after_l2_min: int = 5,
-        breakout_days_after_l2_max: int = 40,
-        max_breakout_distance_above_neckline: float = 0.01,
-        forbid_close_below_bottoms_between: bool = True,
-        forbid_close_below_bottoms_tolerance: float = 0.0,
-        forbid_close_near_bottoms_between: bool = True,
-        forbid_close_near_bottoms_max_above: float = 0.01,
-        near_bottoms_exclude_days_after_l1: int = 3,
-        near_bottoms_exclude_days_before_l2: int = 3,
-        forbid_low_below_bottoms_between: bool = True,
-        forbid_low_below_bottoms_tolerance: float = 0.0,
-        low_below_exclude_days_after_l1: int = 3,
-        low_below_exclude_days_before_l2: int = 3,
-        forbid_any_pivot_low_between: bool = True,
-        pivot_low_between_exclude_days_after_l1: int = 3,
-        pivot_low_between_exclude_days_before_l2: int = 3,
-        forbid_new_min_after_l2_before_breakout: bool = True,
-        new_min_after_l2_exclude_days: int = 0,
-        new_min_after_l2_tolerance: float = 0.0,
-        debug_print: bool = False,
+# ---------------------------------------------------------------------------
+# Core detection
+# ---------------------------------------------------------------------------
+
+def find_double_bottom_signals(
+    df: pd.DataFrame,
+    # --- dołki ---
+    local_min_order: int = 5,           # okno dla lokalnych minimów
+    min_separation_days: int = 10,      # min odstęp między dołkami (dni)
+    max_separation_days: int = 70,      # max odstęp (≈14 tygodni, Bulkowski typowy zakres 2–7 tyg)
+    max_bottom_diff_pct: float = 0.06,  # max różnica wysokości dołków (6%)
+    # --- szczyt między dołkami ---
+    min_peak_rise_pct: float = 0.10,    # min wzrost od dna do szczytu (10%)
+    # --- trend poprzedzający (długi: 60 sesji) ---
+    require_downtrend: bool = True,
+    downtrend_lookback: int = 60,
+    min_downtrend_pct: float = 0.15,
+    # --- stromy zjazd tuż przed L1 (Bulkowski: "Big W / steep decline into L1") ---
+    require_drop_into_l1: bool = True,
+    drop_into_l1_lookback: int = 30,    # ile sesji przed L1 sprawdzamy
+    min_drop_into_l1: float = 0.08,     # min 8% spadek od lokalnego szczytu do L1-close
+    # --- klasyfikacja wariantu ---
+    bottom_window: int = 5,             # okno klasyfikacji Adam/Eve
+    # --- wolumen ---
+    check_volume: bool = False,         # Bulkowski: "usually" higher on left — obserwacja, nie twarda reguła
 ) -> List[dict]:
     """
-    Znajduje historyczne formacje podwójnego dna (W) w dostarczonych danych.
+    Skanuj DataFrame i zwróć listę potwierdzonych formacji podwójnego dna.
 
-    Dodatkowy filtr:
-    - neckline_min_pos_ratio: szyja (maksimum High pomiędzy L1 i L2) nie może wypadać zbyt blisko L1 ani L2.
-      Wymagamy, aby neckline była w przedziale:
-        [L1 + ratio*(L2-L1),  L2 - ratio*(L2-L1)]
-      Domyślnie ratio=0.25, czyli szyja musi wypaść w środkowych 50% rozpiętości formacji.
-
-    Filtry jakości:
-    1) forbid_close_below_bottoms_between:
-       pomiędzy L1 i L2 (bez L1/L2) NIE MOŻE BYĆ zamknięcia (Close) poniżej min(L1,L2)
-       (z ewentualną tolerancją w dół).
-
-    2) forbid_close_near_bottoms_between:
-       pomiędzy L1 i L2 (z wyjątkiem X dni po L1 i Y dni przed L2) nie może być Close "na dołku",
-       tj. <= min(L1,L2) * (1 + max_above). Domyślnie max_above=1%.
-
-    3) forbid_low_below_bottoms_between:
-       pomiędzy L1 i L2 (z wyjątkiem X dni po L1 i Y dni przed L2) nie może być żadnego
-       intraday Low niższego od min(L1_low, L2_low) (z ewentualną tolerancją w dół).
-
-    4) forbid_any_pivot_low_between:
-       pomiędzy L1 i L2 (z wyjątkiem X dni po L1 i Y dni przed L2) nie może być żadnego
-       dodatkowego pivot-lowa. To eliminuje przypadki "triple bottom / multiple bottoms",
-       nawet jeśli ten dodatkowy dołek nie robi nowego minimum.
-
-    5) require_drop_into_l1:
-       przed L1 musi być widoczny spadek (żeby nie łapać L1 jako części ruchu horyzontalnego).
-       Realizacja: w oknie lookback przed L1 wymagamy:
-         - spadku L1-close od lokalnego high o co najmniej min_drop_into_l1,
-         - oraz L1-close istotnie poniżej lokalnego high i średniej close w tym oknie.
-
-    Uwaga: (1) i (2) działają na Close, (3) na Low, (4) na pivotach.
+    Każdy rekord zawiera:
+      date             – data potwierdzenia (zamknięcie > szczyt między dołkami)
+      signal           – opis tekstowy formacji
+      left_trough_date / right_trough_date
+      left_trough_price / right_trough_price
+      peak_date / peak_price (szczyt między dołkami = linia potwierdzenia)
+      confirmation_price
+      pattern_type     – 'Adam & Adam', 'Adam & Eve', 'Eve & Adam', 'Eve & Eve'
+      pattern_height   – wysokość formacji (confirmation_price – niższe z dna)
+      prior_downtrend  – bool
+      volume_ok        – bool
     """
-    if not prices:
+    wdf = _prepare_df(df)
+    if wdf.empty or len(wdf) < local_min_order * 2 + min_separation_days + 1:
         return []
 
-    df = pd.DataFrame.from_dict(prices, orient="index").dropna().sort_index()
-
-    required_cols = {"Close", "High", "Low"}
-    if not required_cols.issubset(set(df.columns)):
-        return []
-
-    df = df[["Close", "High", "Low"]].copy()
-    if len(df) < (pivot_left + pivot_right + 1) + 30:
-        return []
-
-    atr = _atr_approx(df, atr_period)
-    pivots = _find_pivot_lows(df, pivot_left, pivot_right)
-    if len(pivots) < 2:
-        return []
-
-    ma = None
-    if require_downtrend_before_l1:
-        ma = df["Close"].astype(float).rolling(
-            downtrend_ma_period,
-            min_periods=max(5, downtrend_ma_period // 2)
-        ).mean()
-
+    minima = _find_local_minima(wdf, order=local_min_order)
+    n = len(wdf)
     results: List[dict] = []
-    n = len(df)
 
-    closes = df["Close"].astype(float).values
-    lows = df["Low"].astype(float).values
+    confirmed_breakout_idx = -1  # unikaj duplikatów w tym samym oknie
 
-    for a in range(len(pivots)):
-        l1 = pivots[a]
+    for li in range(len(minima) - 1):
+        left_idx = minima[li]
+        if left_idx <= confirmed_breakout_idx:
+            continue
 
-        # 5) L1 musi wynikać ze spadku (anty-horyzontal)
-        if require_drop_into_l1:
-            lb = max(5, int(drop_into_l1_lookback_days))
-            start_idx = max(0, l1.idx - lb)
-            if start_idx >= l1.idx:
+        for ri in range(li + 1, len(minima)):
+            right_idx = minima[ri]
+            separation = right_idx - left_idx
+            if separation < min_separation_days:
+                continue
+            if separation > max_separation_days:
+                break  # lista posortowana rosnąco
+
+            left_low = float(wdf.iloc[left_idx]["Low"])
+            right_low = float(wdf.iloc[right_idx]["Low"])
+
+            if left_low <= 0 or right_low <= 0:
                 continue
 
-            recent = df.iloc[start_idx:l1.idx]
-            if len(recent) < 5:
+            # Różnica wysokości dołków
+            bottom_diff = abs(left_low - right_low) / min(left_low, right_low)
+            if bottom_diff > max_bottom_diff_pct:
                 continue
 
-            recent_high = float(recent["High"].astype(float).max())
-            recent_close_avg = float(recent["Close"].astype(float).mean())
-            l1_close = float(df.iloc[l1.idx]["Close"])
+            lower_trough = min(left_low, right_low)
 
-            if recent_high > 0:
-                drop_from_recent_high = (recent_high - l1_close) / recent_high
-                if drop_from_recent_high < min_drop_into_l1:
-                    continue
-
-            if l1_close > recent_high * float(max_l1_close_vs_recent_high):
-                continue
-            if l1_close > recent_close_avg * float(max_l1_close_vs_recent_avg):
+            # ── Filtr 1: między L1 a L2 Close nie może spaść więcej niż 2% poniżej dolnego dna ──
+            # Tolerancja 2% akceptuje małe wahania / szpikułce nie naruszające struktury formacji.
+            between_closes = wdf["Close"].values[left_idx + 1: right_idx]
+            if len(between_closes) > 0 and float(between_closes.min()) < lower_trough * 0.98:
                 continue
 
-        # Opcjonalny filtr trendu przed L1
-        if require_downtrend_before_l1 and ma is not None:
-            ma_l1 = ma.iloc[l1.idx]
-            if pd.notna(ma_l1):
-                if float(df.iloc[l1.idx]["Close"]) >= float(ma_l1):
-                    continue
-
-        for b in range(a + 1, len(pivots)):
-            l2 = pivots[b]
-
-            days_between = l2.idx - l1.idx
-            if days_between < min_days_between_bottoms:
-                continue
-            if days_between > max_days_between_bottoms:
-                break
-
-            bottom_min = min(l1.price, l2.price)
-            bottom_max = max(l1.price, l2.price)
-            if bottom_min <= 0:
+            # ── Filtr 2: między L1 a L2 nie może być dodatkowego lokalnego minimum ──
+            # Margin = local_min_order, żeby nie odrzucać małych dołków przy samych krawędziach
+            # które są po prostu "echo" L1/L2 w oknie pivot detection.
+            margin = local_min_order
+            inner_start = li + 1
+            inner_end = ri
+            has_inner_pivot = any(
+                (minima[k] >= left_idx + margin) and (minima[k] <= right_idx - margin)
+                for k in range(inner_start, inner_end)
+            )
+            if has_inner_pivot:
                 continue
 
-            # Różnica dołków jako % niższego dołka
-            bottom_diff = (bottom_max - bottom_min) / bottom_min
-            if bottom_diff > max_bottom_price_diff:
+            # Znajdź szczyt (peak) między dołkami
+            between = wdf.iloc[left_idx: right_idx + 1]
+            peak_label = between["High"].idxmax()
+            peak_pos = wdf.index.get_loc(peak_label)  # type: ignore[arg-type]
+
+            peak_high = float(wdf.iloc[peak_pos]["High"])
+
+            # ── Filtr 3: peak musi leżeć w środkowej części rozpiętości L1→L2 ──
+            # 0.25–0.75: środkowe 50% zakresu czasowego — luźniejsze niż wcześniej,
+            # ale nadal zapobiega szczytowi przyklejonemu do samego L1 lub L2.
+            span = right_idx - left_idx
+            peak_pos_ratio = (peak_pos - left_idx) / span if span > 0 else 0.5
+            if peak_pos_ratio < 0.25 or peak_pos_ratio > 0.75:
                 continue
 
-            # 1) Między dołkami nie może być zamknięcia poniżej dołków (Close)
-            if forbid_close_below_bottoms_between and (l2.idx > l1.idx + 1):
-                threshold = bottom_min * (1.0 - forbid_close_below_bottoms_tolerance)
-                between_closes = closes[l1.idx + 1:l2.idx]
-                if len(between_closes) > 0 and float(between_closes.min()) < float(threshold):
-                    continue
+            # Wzrost od niższego dna do szczytu
+            peak_rise = (peak_high - lower_trough) / lower_trough
+            if peak_rise < min_peak_rise_pct:
+                continue
 
-            # 2) Między dołkami nie może być Close "na dołku"
-            if forbid_close_near_bottoms_between and (l2.idx > l1.idx + 1):
-                near_threshold = bottom_min * (1.0 + forbid_close_near_bottoms_max_above)
+            # Trend poprzedzający (ogólny, 60 sesji)
+            prior_down = _find_prior_downtrend(
+                wdf, left_idx,
+                lookback=downtrend_lookback,
+                min_decline_pct=min_downtrend_pct,
+            )
+            if require_downtrend and not prior_down:
+                continue
 
-                start = l1.idx + 1 + max(0, near_bottoms_exclude_days_after_l1)
-                end = l2.idx - max(0, near_bottoms_exclude_days_before_l2)
-
-                if start < end:
-                    mid_closes = closes[start:end]
-                    if len(mid_closes) > 0 and float(mid_closes.min()) <= float(near_threshold):
+            # ── Filtr 4: stromy zjazd tuż przed L1 (Bulkowski "Big W / steep decline into L1") ──
+            # W oknie `drop_into_l1_lookback` sesji przed L1 cena musi spaść o min min_drop_into_l1
+            # od lokalnego High do Close L1. Wyklucza formacje gdzie L1 pojawia się po poziomej
+            # konsolidacji lub małej korekcie — Bulkowski wymaga wyraźnego trendu spadkowego.
+            if require_drop_into_l1:
+                lb_start = max(0, left_idx - drop_into_l1_lookback)
+                recent_window = wdf.iloc[lb_start: left_idx]
+                if len(recent_window) >= 5:
+                    recent_high = float(recent_window["High"].max())
+                    l1_close = float(wdf.iloc[left_idx]["Close"])
+                    if recent_high > 0:
+                        drop = (recent_high - l1_close) / recent_high
+                        if drop < min_drop_into_l1:
+                            continue
+                    # L1-close musi być wyraźnie poniżej średniej close w tym oknie
+                    recent_avg_close = float(recent_window["Close"].mean())
+                    if l1_close >= recent_avg_close:
                         continue
 
-            # 3) Między dołkami nie może być Low niżej niż dołki
-            if forbid_low_below_bottoms_between and (l2.idx > l1.idx + 1):
-                low_threshold = bottom_min * (1.0 - forbid_low_below_bottoms_tolerance)
+            # Klasyfikacja wariantu
+            left_type = _classify_bottom(wdf, left_idx, window=bottom_window)
+            right_type = _classify_bottom(wdf, right_idx, window=bottom_window)
+            pattern_type = f"{left_type} & {right_type}"
 
-                start = l1.idx + 1 + max(0, low_below_exclude_days_after_l1)
-                end = l2.idx - max(0, low_below_exclude_days_before_l2)
+            # Linia potwierdzenia = szczyt między dołkami (Close > peak_high)
+            confirmation_price = peak_high
 
-                if start < end:
-                    mid_lows = lows[start:end]
-                    if len(mid_lows) > 0 and float(mid_lows.min()) < float(low_threshold):
-                        continue
+            # Wolumen: lewe dno powinno mieć wyższy wolumen niż prawe
+            volume_ok = True
+            if check_volume and "Volume" in wdf.columns:
+                left_vol = float(wdf.iloc[left_idx]["Volume"])
+                right_vol = float(wdf.iloc[right_idx]["Volume"])
+                volume_ok = left_vol >= right_vol
 
-            # 4) Między dołkami nie może być dodatkowego pivot-lowa
-            if forbid_any_pivot_low_between:
-                start = l1.idx + 1 + max(0, pivot_low_between_exclude_days_after_l1)
-                end = l2.idx - max(0, pivot_low_between_exclude_days_before_l2)
-                if start < end:
-                    has_pivot_between = any((p.idx >= start) and (p.idx <= end) for p in pivots[a + 1:b])
-                    if has_pivot_between:
-                        continue
-
-            neckline_idx, neckline = _max_high_between(df, l1.idx, l2.idx)
-            if neckline <= 0:
-                continue
-
-            # Szyja (max pomiędzy dołkami) ma być w środkowej części rozpiętości L1-L2
-            span = l2.idx - l1.idx
-            if span > 0:
-                pos = (neckline_idx - l1.idx) / float(span)  # 0.0 przy L1, 1.0 przy L2
-                if pos < neckline_min_pos_ratio or pos > (1.0 - neckline_min_pos_ratio):
-                    continue
-
-            rise = (neckline - bottom_min) / bottom_min
-            if rise < min_neckline_rise:
-                continue
-
-            higher_bottom = bottom_max
-            rise_from_higher = (neckline - higher_bottom) / higher_bottom
-            if rise_from_higher < min_neckline_rise_from_higher_bottom:
-                continue
-
-            # --- breakout window: proporcjonalne do wielkości formacji ---
-            allowed_days_after_l2 = int(round(days_between * breakout_days_after_l2_ratio))
-            allowed_days_after_l2 = max(breakout_days_after_l2_min, allowed_days_after_l2)
-            allowed_days_after_l2 = min(breakout_days_after_l2_max, allowed_days_after_l2)
-            allowed_days_after_l2 = min(max_breakout_days_after_l2, allowed_days_after_l2)
+            # Szukaj potwierdzenia: Close > confirmation_price po prawym dnie
+            #
+            # Reguły Bulkowskiego po L2:
+            # 1. Close poniżej L2 price → formacja unieważniona natychmiast.
+            #    Bulkowski: "48% chance price continues lower without confirming" —
+            #    Close poniżej dna to wyraźny sygnał że to nie jest drugie dno.
+            # 2. Okno poszukiwania breakoutu = proporcja rozpiętości L1→L2 (45%),
+            #    min 5, max 60 sesji. Cena nie może błąkać się w nieskończoność.
+            max_breakout_days = max(10, min(60, int(separation * 0.75)))
+            search_end = min(n, right_idx + 1 + max_breakout_days)
 
             breakout_idx: Optional[int] = None
-            breakout_close: Optional[float] = None
+            for bi in range(right_idx + 1, search_end):
+                close_bi = float(wdf.iloc[bi]["Close"])
+                low_bi   = float(wdf.iloc[bi]["Low"])
 
-            search_start = l2.idx + 1
-            search_end = min(n - 1, l2.idx + allowed_days_after_l2)
-
-            if search_start > search_end:
-                continue
-
-            for k in range(search_start, search_end + 1):
-                close_k = float(df.iloc[k]["Close"])
-                atr_k = float(atr.iloc[k]) if pd.notna(atr.iloc[k]) else 0.0
-                buffer = (breakout_buffer_atr * atr_k) if atr_k > 0 else 0.0
-
-                if close_k > neckline + buffer:
-                    breakout_distance_above_neckline = (close_k - neckline) / neckline if neckline > 0 else 0.0
-                    if breakout_distance_above_neckline > max_breakout_distance_above_neckline:
-                        continue
-
-                    breakout_idx = k
-                    breakout_close = close_k
+                # Reguła 1: Close poniżej L2 → unieważnienie
+                if close_bi < right_low:
                     break
 
-            if breakout_idx is None or breakout_close is None:
+                # Reguła 1b: intraday Low wyraźnie (>1%) poniżej niższego dna → unieważnienie
+                if low_bi < lower_trough * 0.99:
+                    break
+
+                # Potwierdzenie: Close powyżej szczytu między dołkami
+                if close_bi > confirmation_price:
+                    breakout_idx = bi
+                    break
+
+            if breakout_idx is None:
                 continue
 
-            # --- po L2 a przed breakout NIE może być nowego minimum (intraday Low) ---
-            if forbid_new_min_after_l2_before_breakout:
-                start_nm = l2.idx + 1 + max(0, new_min_after_l2_exclude_days)
-                end_nm = breakout_idx  # bez dnia breakout
-                if start_nm < end_nm:
-                    post_l2_min_low = float(lows[start_nm:end_nm].min())
-                    threshold = bottom_min * (1.0 - new_min_after_l2_tolerance)
-                    if post_l2_min_low < threshold:
-                        continue
+            # Buduj sygnał
+            left_date = wdf.index[left_idx]
+            right_date = wdf.index[right_idx]
+            peak_date = wdf.index[peak_pos]
+            breakout_date = wdf.index[breakout_idx]
+            pattern_height = confirmation_price - lower_trough
 
-            length_penalty = (days_between / max_days_between_bottoms)
-            breakout_delay = breakout_idx - l2.idx
-            breakout_penalty = (breakout_delay / max(1, allowed_days_after_l2))
-            score = rise * (1.0 - bottom_diff) * (1.0 - 0.5 * length_penalty) * (1.0 - 0.5 * breakout_penalty)
+            signal = (
+                f"🔻{pattern_type} "
+                f"{left_date.strftime('%Y-%m-%d')}↔{right_date.strftime('%Y-%m-%d')} "
+                f"(conf={confirmation_price:.2f})"
+            )
 
-            target = neckline + (neckline - bottom_min)
+            results.append(
+                {
+                    "date": breakout_date,
+                    "signal": signal,
+                    "pattern_type": pattern_type,
+                    "left_trough_date": left_date,
+                    "right_trough_date": right_date,
+                    "peak_date": peak_date,
+                    "left_trough_price": left_low,
+                    "right_trough_price": right_low,
+                    "peak_price": peak_high,
+                    "confirmation_price": confirmation_price,
+                    "pattern_height": round(pattern_height, 4),
+                    "peak_rise_pct": round(peak_rise * 100, 2),
+                    "bottom_diff_pct": round(bottom_diff * 100, 2),
+                    "separation_days": separation,
+                    "prior_downtrend": prior_down,
+                    "volume_ok": volume_ok,
+                    "left_idx": left_idx,
+                    "right_idx": right_idx,
+                    "breakout_idx": breakout_idx,
+                }
+            )
 
-            result = {
-                "company_abbr": company_abbr,
-                "l1_idx": l1.idx,
-                "l2_idx": l2.idx,
-                "neckline_idx": neckline_idx,
-                "breakout_idx": breakout_idx,
-                "l1_date": l1.ts,
-                "l2_date": l2.ts,
-                "neckline_date": df.index[neckline_idx],
-                "breakout_date": df.index[breakout_idx],
-                "l1_price": float(l1.price),
-                "l2_price": float(l2.price),
-                "neckline": float(neckline),
-                "breakout_close": float(breakout_close),
-                "bottom_diff": float(bottom_diff),
-                "rise": float(rise),
-                "target": float(target),
-                "score": float(score),
-            }
+            confirmed_breakout_idx = breakout_idx
+            break  # jeden prawy dołek per lewy dołek (pierwsze potwierdzenie)
 
-            if debug_print:
-                prefix = f"[{company_abbr}] " if company_abbr else ""
-                print(f"{prefix}PODWOJNE DNO:")
-                print(result)
-                print("\n" * 3)
-
-            results.append(result)
-
-    results.sort(key=lambda x: x["score"], reverse=True)
     return results
 
 
-def format_double_bottoms(double_bottoms: List[dict], limit: int = 10) -> str:
-    """
-    Pomocniczo: formatuje listę wyników do czytelnego tekstu (np. do raportu / printa).
-    """
-    if not double_bottoms:
-        return ""
+# ---------------------------------------------------------------------------
+# Single-bar check (używany przez backtester)
+# ---------------------------------------------------------------------------
 
-    lines: List[str] = []
-    for i, r in enumerate(double_bottoms[:limit], start=1):
-        company = r.get("company_abbr") or ""
-        company_prefix = f"{company} " if company else ""
-
-        l1 = r["l1_date"].strftime("%Y-%m-%d")
-        l2 = r["l2_date"].strftime("%Y-%m-%d")
-        nk = r["neckline_date"].strftime("%Y-%m-%d")
-        bo = r["breakout_date"].strftime("%Y-%m-%d")
-
-        print(
-            company + " " + l1 + "(" + str(r["l1_price"]) + ") / " + l2 + "(" + str(r["l2_price"]) + ")"
-            + " | neck " + nk + " | breakout " + bo + " | target~" + str(r["target"])
-        )
-
-        lines.append(
-            f"{i:02d}) {company_prefix}W {l1} ({r['l1_price']:.2f}) / {l2} ({r['l2_price']:.2f}) | "
-            f"neck {nk}={r['neckline']:.2f} | breakout {bo} close={r['breakout_close']:.2f} | "
-            f"target~{r['target']:.2f} | score={r['score']:.4f}"
-        )
-
-    return "\n".join(lines)
-
-
-def check_double_bottom_breakout_today(
-        prices: Dict[pd.Timestamp, Dict[str, float]],
-        company_abbr: Optional[str] = None,
-        **kwargs,
+def _check_double_bottom_on_df(
+    df: pd.DataFrame,
+    local_min_order: int = 5,
+    min_separation_days: int = 10,
+    max_separation_days: int = 70,
+    max_bottom_diff_pct: float = 0.06,
+    min_peak_rise_pct: float = 0.10,
+    require_downtrend: bool = True,
+    downtrend_lookback: int = 60,
+    min_downtrend_pct: float = 0.10,
+    require_drop_into_l1: bool = True,
+    drop_into_l1_lookback: int = 30,
+    min_drop_into_l1: float = 0.05,
+    bottom_window: int = 5,
+    check_volume: bool = True,
 ) -> Optional[str]:
     """
-    Kompatybilność: zwraca sygnał tylko dla wybicia DZISIAJ.
+    Zwraca sygnał jeśli OSTATNI bar df jest dniem potwierdzenia formacji.
+    Używany w backtesterze (iteracja bar-po-barze).
+    """
+    signals = find_double_bottom_signals(
+        df=df,
+        local_min_order=local_min_order,
+        min_separation_days=min_separation_days,
+        max_separation_days=max_separation_days,
+        max_bottom_diff_pct=max_bottom_diff_pct,
+        min_peak_rise_pct=min_peak_rise_pct,
+        require_downtrend=require_downtrend,
+        downtrend_lookback=downtrend_lookback,
+        min_downtrend_pct=min_downtrend_pct,
+        require_drop_into_l1=require_drop_into_l1,
+        drop_into_l1_lookback=drop_into_l1_lookback,
+        min_drop_into_l1=min_drop_into_l1,
+        bottom_window=bottom_window,
+        check_volume=check_volume,
+    )
+    if not signals:
+        return None
 
-    Implementacja: znajdujemy wszystkie historyczne formacje, a potem wybieramy tę,
-    której breakout_date == ostatni dzień w danych (dzisiaj), o najwyższym score.
+    last = signals[-1]
+    if pd.Timestamp(last["date"]) != df.index[-1]:
+        return None
+    return str(last["signal"])
+
+
+# ---------------------------------------------------------------------------
+# Public API (analogiczne do check_flag_breakout_today)
+# ---------------------------------------------------------------------------
+
+def check_double_bottom_today(
+    prices: Dict[pd.Timestamp, Dict[str, float]],
+    local_min_order: int = 5,
+    min_separation_days: int = 10,
+    max_separation_days: int = 70,
+    max_bottom_diff_pct: float = 0.06,
+    min_peak_rise_pct: float = 0.10,
+    require_downtrend: bool = True,
+    downtrend_lookback: int = 60,
+    min_downtrend_pct: float = 0.10,
+    require_drop_into_l1: bool = True,
+    drop_into_l1_lookback: int = 30,
+    min_drop_into_l1: float = 0.05,
+    bottom_window: int = 5,
+    check_volume: bool = True,
+) -> Optional[str]:
+    """
+    Sprawdź czy dzisiaj (ostatni bar) pojawia się potwierdzenie formacji podwójnego dna.
+    `prices` – słownik {timestamp: {Open, High, Low, Close, Volume}}.
     """
     if not prices:
         return None
-
-    df = pd.DataFrame.from_dict(prices, orient="index").dropna().sort_index()
-    if df.empty:
-        return None
-    today_ts = df.index[-1]
-
-    all_found = find_double_bottoms(prices, company_abbr=company_abbr, **kwargs)
-    todays = [r for r in all_found if r.get("breakout_date") == today_ts]
-    if not todays:
-        return None
-
-    best = max(todays, key=lambda x: x["score"])
-    l1 = best["l1_date"].strftime("%m-%d")
-    l2 = best["l2_date"].strftime("%m-%d")
-    neckline = float(best["neckline"])
-    target = float(best["target"])
-
-    result = f"🆆{l1}/{l2} (neck={neckline:.2f}, target~{target:.2f})"
-    print(result)
-    return result
+    df = pd.DataFrame.from_dict(prices, orient="index").sort_index()
+    return _check_double_bottom_on_df(
+        df=df,
+        local_min_order=local_min_order,
+        min_separation_days=min_separation_days,
+        max_separation_days=max_separation_days,
+        max_bottom_diff_pct=max_bottom_diff_pct,
+        min_peak_rise_pct=min_peak_rise_pct,
+        require_downtrend=require_downtrend,
+        downtrend_lookback=downtrend_lookback,
+        min_downtrend_pct=min_downtrend_pct,
+        require_drop_into_l1=require_drop_into_l1,
+        drop_into_l1_lookback=drop_into_l1_lookback,
+        min_drop_into_l1=min_drop_into_l1,
+        bottom_window=bottom_window,
+        check_volume=check_volume,
+    )
