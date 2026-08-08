@@ -359,44 +359,18 @@ def build_param_sets() -> list[dict[str, Any]]:
     - require_downtrend=True : formacja musi być poprzedzona trendem spadkowym
     - check_volume=True      : wyższy wolumen na lewym dnie (Bulkowski: "usually higher on left")
     """
-    # TRYB: jedna konfiguracja do szybkiego testowania
-    # Żeby uruchomić 36 kombinacji, zamień na siatke poniżej (zakomentuj/odkomentuj)
     return [
         {
             "local_min_order": 5,
             "min_separation_days": 10,
-            "max_separation_days": 70,
-            "max_bottom_diff_pct": 0.03,
+            "max_separation_days": 100,
+            "max_bottom_diff_pct": 0.05,
             "min_peak_rise_pct": 0.17,
             "require_downtrend": True,
             "check_volume": False,
             "_min_downtrend_pct": 0.15,
         }
     ]
-
-    # TRYB: siatka 36 kombinacji (odkomentuj żeby uruchomić)
-    # max_separation_days_values = [70, 100]
-    # max_bottom_diff_pct_values = [0.03, 0.04, 0.05]
-    # min_peak_rise_pct_values   = [0.15, 0.17, 0.19]
-    # min_downtrend_pct_values   = [0.10, 0.15]
-    # param_sets: list[dict[str, Any]] = []
-    # for max_sep, max_diff, min_rise, min_down in product(
-    #     max_separation_days_values,
-    #     max_bottom_diff_pct_values,
-    #     min_peak_rise_pct_values,
-    #     min_downtrend_pct_values,
-    # ):
-    #     param_sets.append({
-    #         "local_min_order": 5,
-    #         "min_separation_days": 10,
-    #         "max_separation_days": max_sep,
-    #         "max_bottom_diff_pct": max_diff,
-    #         "min_peak_rise_pct": min_rise,
-    #         "require_downtrend": True,
-    #         "check_volume": False,
-    #         "_min_downtrend_pct": min_down,
-    #     })
-    # return param_sets
 
 
 def param_set_label(params: dict[str, Any]) -> str:

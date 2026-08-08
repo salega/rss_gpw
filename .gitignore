@@ -1,6 +1,10 @@
 # Cache danych historycznych (duże pliki .pkl)
 back_tests/cache/
 
+# IntelliJ / IDE
+.idea/
+csv-editor.xml
+
 # Python
 __pycache__/
 *.py[cod]

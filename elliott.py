@@ -6,8 +6,8 @@ from datetime import datetime, timedelta
 import pandas as pd
 import yfinance as yf
 
-from data import SWIG_80, MWIG_40, WIG_20
-from formations.double_bottom import check_double_bottom_breakout_today
+from data import SWIG_80, MWIG_40, WIG_20, SP_500, RUSSELL_2000
+from formations.double_bottom import check_double_bottom_today
 from formations.flag import check_flag_breakout_today
 from formations.flat_base import check_flat_base_breakout_today
 from formations.nr7 import check_nr7_confirmed_today
@@ -21,25 +21,27 @@ INCLUDE_DOWN_NR7 = False
 DATE_TO_SIMULATE = None #datetime(2055, 10, 3)
 
 
-def get_last_year_price_data(company_abbr: str):
+def get_last_year_price_data(company_abbr: str, market_suffix: str = ".WA"):
     end_date = DATE_TO_SIMULATE if DATE_TO_SIMULATE else datetime.today()
-    start_date = end_date - timedelta(days=365)
+    start_date = end_date - timedelta(days=365 * 2)  # 2 lata — double bottom potrzebuje więcej historii
 
-    data = yf.download(company_abbr + ".WA", start=start_date, end=end_date, progress=False)
+    ticker_symbol = company_abbr + market_suffix
+    data = yf.download(ticker_symbol, start=start_date, end=end_date, progress=False, auto_adjust=True)
 
     if data is None or data.empty:
         return None
 
     if isinstance(data.columns, pd.MultiIndex):
-        data = data.xs(company_abbr + ".WA", axis=1, level=-1)
+        data = data.xs(ticker_symbol, axis=1, level=-1)
 
-    prices = data[["Open", "Close", "High", "Low"]].dropna().to_dict(orient="index")
+    cols = [c for c in ["Open", "Close", "High", "Low", "Volume"] if c in data.columns]
+    prices = data[cols].dropna().to_dict(orient="index")
 
     return prices
 
 
-def calculate_potential(company_abbr: str):
-    prices = get_last_year_price_data(company_abbr)
+def calculate_potential(company_abbr: str, market_suffix: str = ".WA"):
+    prices = get_last_year_price_data(company_abbr, market_suffix=market_suffix)
 
     if prices is None:
         return None
@@ -69,21 +71,26 @@ def calculate_potential(company_abbr: str):
         if float(val) < local_min_value:
             local_min_value = float(val)
 
-    max_40_percent_greater_than_local_min = max_value > local_min_value * 1.4
-    today_between_10_and_50_percent_greater_than_local_min = local_min_value * 1.1 < last_value <= local_min_value * 1.5
-    today_higher_than_yesterday = last_value > penultimate_value
-    is_at_least_one_ema_above = price_above_emas[0] or price_above_emas[1]
-    has_potential = (max_40_percent_greater_than_local_min and is_at_least_one_ema_above and
-                     today_between_10_and_50_percent_greater_than_local_min and today_higher_than_yesterday)
+    is_gpw = market_suffix == ".WA"
+
     nr7 = check_nr7_confirmed_today(prices)
-    rectangle_breakout_today = check_rectangle_breakout_today_daily_scan(prices)
-    flat_base_breakout_today = check_flat_base_breakout_today(prices)
+    # rectangle_breakout_today = check_rectangle_breakout_today_daily_scan(prices) if is_gpw else None
+    # flat_base_breakout_today = check_flat_base_breakout_today(prices) if is_gpw else None
+    rectangle_breakout_today = None
+    flat_base_breakout_today = None
     flag_breakout_today = check_flag_breakout_today(prices)
-    double_bottom_breakout_today = check_double_bottom_breakout_today(prices, company_abbr=company_abbr)
+    double_bottom_breakout_today = check_double_bottom_today(
+        prices,
+        max_separation_days=100,
+        max_bottom_diff_pct=0.05,
+        min_peak_rise_pct=0.17,
+        min_downtrend_pct=0.15,
+        check_volume=False,
+    )
 
     return {
         "company": company_abbr,
-        "has_potential": has_potential,
+        "market_suffix": market_suffix,
         "above_ema_8": price_above_emas[0],
         "above_ema_30": price_above_emas[1],
         "above_ema_200": price_above_emas[2],
@@ -92,15 +99,20 @@ def calculate_potential(company_abbr: str):
         "last_value": f"{last_value:.2f}",
         "penultimate_value": f"{penultimate_value:.2f}",
         "nr7": nr7,
-        "rectangle_breakout_today": rectangle_breakout_today, # back tested
-        "flat_base_breakout_today": flat_base_breakout_today, # back tested
-        "flag_breakout_today": flag_breakout_today, # back tested
+        "rectangle_breakout_today": rectangle_breakout_today,
+        "flat_base_breakout_today": flat_base_breakout_today,
+        "flag_breakout_today": flag_breakout_today,
         "double_bottom_breakout_today": double_bottom_breakout_today,
     }
 
 
 def format_potential(potential):
-    stooq_url = f'https://stooq.pl/q/?s={potential["company"]}'
+    company = potential["company"]
+    suffix = potential.get("market_suffix", ".WA")
+    if suffix == ".WA":
+        stooq_url = f'https://stooq.pl/q/?s={company}'
+    else:
+        stooq_url = f'https://finance.yahoo.com/quote/{company}'
     ema_8_icon = "✅️" if potential["above_ema_8"] else "❌"
     ema_30_icon = "✅️" if potential["above_ema_30"] else "❌"
     ema_200_icon = "✅️" if potential["above_ema_200"] else "❌"
@@ -152,14 +164,13 @@ def format_potential(potential):
     return formatted_entry
 
 
-def get_if_has_potential(company):
-    potential = calculate_potential(company)
+def get_if_has_potential(company, market_suffix: str = ".WA"):
+    potential = calculate_potential(company, market_suffix=market_suffix)
 
     if (potential and (potential["rectangle_breakout_today"]
                        or potential["flat_base_breakout_today"] or potential["flag_breakout_today"]
                        or potential["double_bottom_breakout_today"])):
-        potential = format_potential(potential)
-        return potential
+        return format_potential(potential)
     return ""
 
 
@@ -171,27 +182,26 @@ if __name__ == "__main__":
         company_abbr = input("\nPodaj skrót spółki lub puste: ").strip().upper()
 
     if company_abbr == "":
-        report = '<span style="font-size: 1.6em;"><b>🏪SWIG80:</b></span><br>━━━━━━━━━━━━━━━━━━━━━━━━━━━━'
+        # --- GPW ---
+        report = '<span style="font-size: 1.6em;"><b>🇵🇱 GPW</b></span><br>'
+        report += '<span style="font-size: 1.3em;"><b>🏪SWIG80:</b></span><br>━━━━━━━━━━━━━━━━━━━━━━━━━━━━'
         for company in SWIG_80:
-            report = report + get_if_has_potential(company)
-        report = report + '<br><br><span style="font-size: 1.6em;"><b>🏬MWIG40:</b></span><br>━━━━━━━━━━━━━━━━━━━━━━━━━━━━'
+            report = report + get_if_has_potential(company, market_suffix=".WA")
+        report = report + '<br><br><span style="font-size: 1.3em;"><b>🏬MWIG40:</b></span><br>━━━━━━━━━━━━━━━━━━━━━━━━━━━━'
         for company in MWIG_40:
-            report = report + get_if_has_potential(company)
-        report = report + '<br><br><span style="font-size: 1.6em;"><b>🏢WIG20:</b></span><br>━━━━━━━━━━━━━━━━━━━━━━━━━━━━'
+            report = report + get_if_has_potential(company, market_suffix=".WA")
+        report = report + '<br><br><span style="font-size: 1.3em;"><b>🏢WIG20:</b></span><br>━━━━━━━━━━━━━━━━━━━━━━━━━━━━'
         for company in WIG_20:
-            report = report + get_if_has_potential(company)
+            report = report + get_if_has_potential(company, market_suffix=".WA")
 
-        report = report + """
-        <br><br>
-        <div style="font-size: 0.95em; margin-top: 10px; line-height: 1.4;">
-          <b>Pamiętaj, że fala 3 powinna:</b>
-          <ul style="margin: 6px 0 0 18px; padding: 0;">
-            <li>zaczynać się po 38–70% fali 2 (która jest falą ABC)</li>
-            <li>mieć większy wolumen</li>
-            <li>mieć bardziej dynamiczny start</li>
-          </ul>
-        </div>
-        """
+        # --- US ---
+        report += '<br><br><span style="font-size: 1.6em;"><b>🇺🇸 US</b></span><br>'
+        report += '<span style="font-size: 1.3em;"><b>📊 S&P 500:</b></span><br>━━━━━━━━━━━━━━━━━━━━━━━━━━━━'
+        for company in SP_500:
+            report = report + get_if_has_potential(company, market_suffix="")
+        report += '<br><br><span style="font-size: 1.3em;"><b>📊 Russell 2000:</b></span><br>━━━━━━━━━━━━━━━━━━━━━━━━━━━━'
+        for company in RUSSELL_2000:
+            report = report + get_if_has_potential(company, market_suffix="")
 
         if os.environ["SEND_EMAIL"] == "true":
             send_email("Raport notowań", report, body_html=f"""\

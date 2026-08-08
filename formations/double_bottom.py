@@ -145,8 +145,8 @@ def find_double_bottom_signals(
     # --- dołki ---
     local_min_order: int = 5,           # okno dla lokalnych minimów
     min_separation_days: int = 10,      # min odstęp między dołkami (dni)
-    max_separation_days: int = 70,      # max odstęp (≈14 tygodni, Bulkowski typowy zakres 2–7 tyg)
-    max_bottom_diff_pct: float = 0.06,  # max różnica wysokości dołków (6%)
+    max_separation_days: int = 100,     # max odstęp (≈20 tygodni)
+    max_bottom_diff_pct: float = 0.05,  # max różnica wysokości dołków (5%)
     # --- szczyt między dołkami ---
     min_peak_rise_pct: float = 0.17,    # min wzrost od dna do szczytu (17%, kompromis między min 10% a medianą 19%)
     # --- trend poprzedzający (długi: 60 sesji) ---
