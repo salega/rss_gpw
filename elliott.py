@@ -164,12 +164,28 @@ def format_potential(potential):
     return formatted_entry
 
 
+_progress_idx = 0
+_progress_total = 0
+
+
+def _log_progress(company: str, market_suffix: str, hit: bool) -> None:
+    global _progress_idx
+    _progress_idx += 1
+    pct = int(_progress_idx / _progress_total * 100) if _progress_total else 0
+    bar = "█" * (pct // 5) + "░" * (20 - pct // 5)
+    signal = "✅" if hit else "  "
+    print(f"{signal} [{_progress_idx:4d}/{_progress_total}] {bar} {pct:3d}%  {company}{market_suffix}", flush=True)
+
+
 def get_if_has_potential(company, market_suffix: str = ".WA"):
     potential = calculate_potential(company, market_suffix=market_suffix)
 
-    if (potential and (potential["rectangle_breakout_today"]
-                       or potential["flat_base_breakout_today"] or potential["flag_breakout_today"]
-                       or potential["double_bottom_breakout_today"])):
+    hit = bool(potential and (potential["rectangle_breakout_today"]
+                              or potential["flat_base_breakout_today"] or potential["flag_breakout_today"]
+                              or potential["double_bottom_breakout_today"]))
+    _log_progress(company, market_suffix, hit)
+
+    if hit:
         return format_potential(potential)
     return ""
 
@@ -182,6 +198,9 @@ if __name__ == "__main__":
         company_abbr = input("\nPodaj skrót spółki lub puste: ").strip().upper()
 
     if company_abbr == "":
+        from data import ALL_US as _ALL_US
+        _progress_total = len(SWIG_80) + len(MWIG_40) + len(WIG_20) + len(_ALL_US)
+
         # --- GPW ---
         report = '<span style="font-size: 1.6em;"><b>🇵🇱 GPW</b></span><br>'
         report += '<span style="font-size: 1.3em;"><b>🏪SWIG80:</b></span><br>━━━━━━━━━━━━━━━━━━━━━━━━━━━━'
