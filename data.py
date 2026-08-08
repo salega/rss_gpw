@@ -34,7 +34,6 @@ SWIG_80 = [
     "ERB",
     "FRO",
     "FTE",
-    "GEA",
     "GRX",
     "KGN",
     "LWB",
