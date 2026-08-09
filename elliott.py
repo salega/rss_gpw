@@ -88,6 +88,7 @@ def calculate_potential(company_abbr: str, market_suffix: str = ".WA"):
         drop_into_l1_lookback=20,
         max_throwback_in_decline=0.08,
         check_volume=False,
+        # Złota konfiguracja: 497 trades, +29.0% avg, 87.4% win rate, 12.1% SL
     )
 
     return {

@@ -223,7 +223,10 @@ def trade_result(df: pd.DataFrame, event_idx: int, stop_price: float | None,
         if peak_price > entry_close and (peak_price - low) / peak_price >= drawdown_threshold:
             return {"result_pct": safe_pct_change(entry_close, peak_price), "sl_hit": False, "peak_price": peak_price}
 
-    return {"result_pct": None, "sl_hit": False, "peak_price": peak_price}
+    # Dane skończyły się bez triggera (ani SL ani 20% drawdown od szczytu).
+    # Bulkowski style: liczymy wynik jako zmianę do ostatniego Close w danych.
+    last_close = float(df.iloc[-1]["Close"])
+    return {"result_pct": safe_pct_change(entry_close, last_close), "sl_hit": False, "peak_price": peak_price}
 
 
 def trade_result_trailing_stop(df: pd.DataFrame, event_idx: int, stop_price: float | None,
@@ -359,33 +362,18 @@ def build_param_sets() -> list[dict[str, Any]]:
     - require_downtrend=True : formacja musi być poprzedzona trendem spadkowym
     - check_volume=True      : wyższy wolumen na lewym dnie (Bulkowski: "usually higher on left")
     """
-    # 2×3×3×2 = 36 kombinacji
-    # Sąsiedztwo złotej konfiguracji: sep=100, diff=0.06, rise=0.17, down=0.15
-    # 3×3×2×2 = 36 kombinacji
-    max_separation_days_values = [100]
-    max_bottom_diff_pct_values = [0.05, 0.06, 0.07]
-    min_peak_rise_pct_values   = [0.15, 0.17, 0.18]
-    min_downtrend_pct_values   = [0.14, 0.15, 0.16]
-
-    param_sets: list[dict[str, Any]] = []
-    for max_sep, max_diff, min_rise, min_down in product(
-        max_separation_days_values,
-        max_bottom_diff_pct_values,
-        min_peak_rise_pct_values,
-        min_downtrend_pct_values,
-    ):
-        param_sets.append({
+    return [
+        {
             "local_min_order": 5,
             "min_separation_days": 10,
-            "max_separation_days": max_sep,
-            "max_bottom_diff_pct": max_diff,
-            "min_peak_rise_pct": min_rise,
+            "max_separation_days": 100,
+            "max_bottom_diff_pct": 0.06,
+            "min_peak_rise_pct": 0.17,
             "require_downtrend": True,
             "check_volume": False,
-            "_min_downtrend_pct": min_down,
-        })
-    return param_sets
-
+            "_min_downtrend_pct": 0.15,
+        }
+    ]
 
 def param_set_label(params: dict[str, Any]) -> str:
     return (
@@ -404,6 +392,7 @@ def backtest_double_bottom_for_ticker(
     ticker: str,
     df: pd.DataFrame,
     params: dict[str, Any],
+    signal_cutoff: pd.Timestamp | None = None,
 ) -> list[dict[str, Any]]:
     rows: list[dict[str, Any]] = []
 
@@ -411,9 +400,13 @@ def backtest_double_bottom_for_ticker(
     if df.empty or len(df) < min_bars:
         return rows
 
+    # Detekcja sygnałów na danych przyciętych do signal_cutoff (np. 2011-01-01)
+    # ale wyniki mierzone na pełnym df (np. do 2013-01-01)
+    detection_df = df.loc[df.index <= signal_cutoff] if signal_cutoff is not None else df
+
     # Skanuj cały df jednorazowo — O(n), nie O(n²)
     signals = find_double_bottom_signals(
-        df=df,
+        df=detection_df,
         local_min_order=params["local_min_order"],
         min_separation_days=params["min_separation_days"],
         max_separation_days=params["max_separation_days"],
@@ -555,16 +548,16 @@ def print_top_configs(summary_df: pd.DataFrame) -> None:
 # ---------------------------------------------------------------------------
 
 def _run_single_config(
-    args: tuple[dict[str, Any], dict[str, pd.DataFrame]],
+    args: tuple[dict[str, Any], dict[str, pd.DataFrame], pd.Timestamp | None],
 ) -> tuple[dict[str, Any], list[dict[str, Any]], list[dict[str, Any]]]:
-    params, history_map = args
+    params, history_map, signal_cutoff = args
     label = param_set_label(params)
 
     config_rows: list[dict[str, Any]] = []
     config_detail_rows: list[dict[str, Any]] = []
 
     for ticker, df in history_map.items():
-        rows = backtest_double_bottom_for_ticker(ticker=ticker, df=df, params=params)
+        rows = backtest_double_bottom_for_ticker(ticker=ticker, df=df, params=params, signal_cutoff=signal_cutoff)
         for row in rows:
             config_detail_rows.append({"config": label, **params, **row})
         config_rows.extend(rows)
@@ -588,10 +581,12 @@ def main() -> None:
         all_tickers = ALL
         start_date = datetime(2013, 1, 1)
         end_date = datetime(2026, 5, 1)
+        signal_cutoff = None  # GPW — skanuj wszystko do końca danych
     elif MARKET == "NYSE":
         from data import ALL_US as all_tickers
         start_date = datetime(1985, 1, 1)
-        end_date = datetime(2011, 1, 1)   # Bulkowski: styczeń 1985 – styczeń 2011
+        end_date = datetime(2013, 1, 1)   # dane do 2013 — sygnały skanowane do 2011,
+        signal_cutoff = datetime(2011, 1, 1)  # ale wyniki mierzone do 2013 żeby zamknąć otwarte transakcje
     else:
         raise ValueError(f"Nieznany rynek: {MARKET}")
 
@@ -635,7 +630,7 @@ def main() -> None:
         config_rows: list[dict[str, Any]] = []
 
         for ticker, df in history_map.items():
-            rows = backtest_double_bottom_for_ticker(ticker=ticker, df=df, params=params)
+            rows = backtest_double_bottom_for_ticker(ticker=ticker, df=df, params=params, signal_cutoff=signal_cutoff)
 
             for row in rows:
                 l1_date  = pd.Timestamp(row["left_trough_date"]).strftime("%Y-%m-%d")

@@ -12,19 +12,19 @@ import yfinance as yf
 
 
 def main() -> None:
-    # --- DEBUG: zahardkodowane wartości dla NX ---
-    ticker    = "NX"
-    suffix    = ""          # US — bez sufiksu
-    start_str = "2009-12-01"
-    end_str   = "2010-04-01"
+    # --- DEBUG: zahardkodowane wartości dla QDEL ---
+    ticker    = "QDEL"
+    suffix    = ""
+    start_str = "2010-08-01"
+    end_str   = "2011-01-01"
     # Kluczowe daty formacji:
-    # L1=2010-02-10 @ 12.05, Neck=2010-02-22 @ 14.25, L2=2010-02-25 @ 11.93
-    # Breakout=2010-03-01 @ 14.25, result=+21.9% (peak: 17.37)
+    # L1=2010-09-28 @ 10.75, Neck=2010-10-15 @ 12.63, L2=2010-10-27 @ 11.20
+    # Breakout=2010-11-10 @ 12.64, stop=~10.63
     MARKERS = {
-        "2010-02-10": "← L1      @ 12.05",
-        "2010-02-22": "← NECK    @ 14.25",
-        "2010-02-25": "← L2      @ 11.93",
-        "2010-03-01": "← BREAKOUT @ 14.25",
+        "2010-09-28": "← L1      @ 10.75",
+        "2010-10-15": "← NECK    @ 12.63",
+        "2010-10-27": "← L2      @ 11.20",
+        "2010-11-10": "← BREAKOUT @ 12.64",
     }
     # --- koniec DEBUG ---
 
