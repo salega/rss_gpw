@@ -359,18 +359,32 @@ def build_param_sets() -> list[dict[str, Any]]:
     - require_downtrend=True : formacja musi być poprzedzona trendem spadkowym
     - check_volume=True      : wyższy wolumen na lewym dnie (Bulkowski: "usually higher on left")
     """
-    return [
-        {
+    # 2×3×3×2 = 36 kombinacji
+    # Sąsiedztwo złotej konfiguracji: sep=100, diff=0.06, rise=0.17, down=0.15
+    # 3×3×2×2 = 36 kombinacji
+    max_separation_days_values = [100]
+    max_bottom_diff_pct_values = [0.05, 0.06, 0.07]
+    min_peak_rise_pct_values   = [0.15, 0.17, 0.18]
+    min_downtrend_pct_values   = [0.14, 0.15, 0.16]
+
+    param_sets: list[dict[str, Any]] = []
+    for max_sep, max_diff, min_rise, min_down in product(
+        max_separation_days_values,
+        max_bottom_diff_pct_values,
+        min_peak_rise_pct_values,
+        min_downtrend_pct_values,
+    ):
+        param_sets.append({
             "local_min_order": 5,
             "min_separation_days": 10,
-            "max_separation_days": 100,
-            "max_bottom_diff_pct": 0.05,
-            "min_peak_rise_pct": 0.17,
+            "max_separation_days": max_sep,
+            "max_bottom_diff_pct": max_diff,
+            "min_peak_rise_pct": min_rise,
             "require_downtrend": True,
             "check_volume": False,
-            "_min_downtrend_pct": 0.15,
-        }
-    ]
+            "_min_downtrend_pct": min_down,
+        })
+    return param_sets
 
 
 def param_set_label(params: dict[str, Any]) -> str:

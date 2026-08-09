@@ -146,7 +146,7 @@ def find_double_bottom_signals(
     local_min_order: int = 5,           # okno dla lokalnych minimów
     min_separation_days: int = 10,      # min odstęp między dołkami (dni)
     max_separation_days: int = 100,     # max odstęp (≈20 tygodni)
-    max_bottom_diff_pct: float = 0.05,  # max różnica wysokości dołków (5%)
+    max_bottom_diff_pct: float = 0.06,  # max różnica wysokości dołków (6%)
     # --- szczyt między dołkami ---
     min_peak_rise_pct: float = 0.17,    # min wzrost od dna do szczytu (17%, kompromis między min 10% a medianą 19%)
     # --- trend poprzedzający (długi: 60 sesji) ---
@@ -155,8 +155,9 @@ def find_double_bottom_signals(
     min_downtrend_pct: float = 0.15,
     # --- stromy zjazd tuż przed L1 (Bulkowski: "Big W / steep decline into L1") ---
     require_drop_into_l1: bool = True,
-    drop_into_l1_lookback: int = 30,    # ile sesji przed L1 sprawdzamy
+    drop_into_l1_lookback: int = 20,    # ile sesji przed L1 sprawdzamy
     min_drop_into_l1: float = 0.08,     # min 8% spadek od lokalnego szczytu do L1-close
+    max_throwback_in_decline: float = 0.08,  # max 8% odbicie w górę w trakcie zjazdu do L1
     # --- klasyfikacja wariantu ---
     bottom_window: int = 5,             # okno klasyfikacji Adam/Eve
     # --- wolumen ---
@@ -294,6 +295,22 @@ def find_double_bottom_signals(
                     if l1_close >= recent_avg_close:
                         continue
 
+                    # ── Filtr: czysty zjazd bez znaczących odbić (Bulkowski "few or no consolidations") ──
+                    # Śledzimy bieżące minimum w oknie — jeśli cena odbija od lokalnego minimum
+                    # o więcej niż max_throwback_in_decline, oznacza to konsolidację, nie czysty trend.
+                    closes = recent_window["Close"].values
+                    running_min = closes[0]
+                    max_throwback = 0.0
+                    for c in closes[1:]:
+                        if c < running_min:
+                            running_min = c
+                        elif running_min > 0:
+                            throwback = (c - running_min) / running_min
+                            if throwback > max_throwback:
+                                max_throwback = throwback
+                    if max_throwback > max_throwback_in_decline:
+                        continue
+
             # Klasyfikacja wariantu
             left_type = _classify_bottom(wdf, left_idx, window=bottom_window)
             right_type = _classify_bottom(wdf, right_idx, window=bottom_window)
@@ -401,6 +418,7 @@ def _check_double_bottom_on_df(
     require_drop_into_l1: bool = True,
     drop_into_l1_lookback: int = 30,
     min_drop_into_l1: float = 0.05,
+    max_throwback_in_decline: float = 0.06,
     bottom_window: int = 5,
     check_volume: bool = True,
 ) -> Optional[str]:
@@ -421,6 +439,7 @@ def _check_double_bottom_on_df(
         require_drop_into_l1=require_drop_into_l1,
         drop_into_l1_lookback=drop_into_l1_lookback,
         min_drop_into_l1=min_drop_into_l1,
+        max_throwback_in_decline=max_throwback_in_decline,
         bottom_window=bottom_window,
         check_volume=check_volume,
     )
@@ -450,6 +469,7 @@ def check_double_bottom_today(
     require_drop_into_l1: bool = True,
     drop_into_l1_lookback: int = 30,
     min_drop_into_l1: float = 0.05,
+    max_throwback_in_decline: float = 0.06,
     bottom_window: int = 5,
     check_volume: bool = True,
 ) -> Optional[str]:
@@ -473,6 +493,7 @@ def check_double_bottom_today(
         require_drop_into_l1=require_drop_into_l1,
         drop_into_l1_lookback=drop_into_l1_lookback,
         min_drop_into_l1=min_drop_into_l1,
+        max_throwback_in_decline=max_throwback_in_decline,
         bottom_window=bottom_window,
         check_volume=check_volume,
     )

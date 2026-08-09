@@ -1,2 +1,2 @@
 config,local_min_order,min_separation_days,max_separation_days,max_bottom_diff_pct,min_peak_rise_pct,require_downtrend,check_volume,_min_downtrend_pct,trades,tickers,result_pct_count,result_pct_avg,result_pct_median,result_pct_win_rate,sl_hit_rate,result_pct_avg_no_sl,result_pct_median_no_sl,result_pct_count_no_sl
-sep=10-70_diff=0.03_rise=0.17_down=0.15,5,10,70,0.03,0.17,True,False,0.15,432,344,421,26.276800875411432,15.809297079369067,88.12351543942994,11.574074074074074,32.466416737380655,18.649523526969848,371
+sep=10-100_diff=0.06_rise=0.17_down=0.15,5,10,100,0.06,0.17,True,False,0.15,497,377,477,28.976017753084705,17.62500489610501,87.42138364779875,12.072434607645874,35.833437500194975,20.987943409356657,417

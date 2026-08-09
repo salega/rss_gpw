@@ -82,9 +82,11 @@ def calculate_potential(company_abbr: str, market_suffix: str = ".WA"):
     double_bottom_breakout_today = check_double_bottom_today(
         prices,
         max_separation_days=100,
-        max_bottom_diff_pct=0.05,
+        max_bottom_diff_pct=0.06,
         min_peak_rise_pct=0.17,
         min_downtrend_pct=0.15,
+        drop_into_l1_lookback=20,
+        max_throwback_in_decline=0.08,
         check_volume=False,
     )
 
