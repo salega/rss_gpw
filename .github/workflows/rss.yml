@@ -2,13 +2,14 @@
 name: Run Python daily at 08:30 Europe/Warsaw
 
 on:
-  schedule:
-    # Lato (kwiecień–październik): 06:30 UTC = 08:30 PL
-    - cron: "2 6 * 4-10 *"
-    # Zima (listopad–grudzień): 07:30 UTC = 08:30 PL
-    - cron: "2 7 * 11-12 *"
-    # Zima (styczeń–marzec): 07:30 UTC = 08:30 PL
-    - cron: "2 7 * 1-3 *"
+  # TYMCZASOWO WYŁĄCZONE - schedule zakomentowane
+  # schedule:
+  #   # Lato (kwiecień–październik): 06:30 UTC = 08:30 PL
+  #   - cron: "2 6 * 4-10 *"
+  #   # Zima (listopad–grudzień): 07:30 UTC = 08:30 PL
+  #   - cron: "2 7 * 11-12 *"
+  #   # Zima (styczeń–marzec): 07:30 UTC = 08:30 PL
+  #   - cron: "2 7 * 1-3 *"
 
   workflow_dispatch:
 
