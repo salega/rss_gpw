@@ -1,0 +1,171 @@
+JAK WYŁOWIĆ ODWRÓCONĄ ZWYŻKUJĄCĄ MUSZLĘ
+Kiedy pracowałem na zmywaku w hotelu Gould, żeby zarobić na studia, szef tamtejszej kuchni często serwował małże. Bywały one równie atrakcyjne, jak muszle małży zdarzające się na giełdowych wykresach. Warto się więc nimi zainteresować. Tymczasem wielu graczy giełdowych po prostu o nich nie wie – tak wynika z licznych listów, które dostaję.
+Są cztery odmiany formacji muszli, czyli muszle zwyżkujące i zniżkujące oraz ich odwrócone odpowiedniki. Tutaj zajmę się tylko jedną z nich – odwróconą muszlą zwyżkującą.
+Przykład odwróconej muszli zwyżkującej pokazuję na diagramie 3.4. Zaczyna się ona w punkcie A w trakcie średnioterminowego trendu wzrostowego. Generalnie jednak trend poprzedzający formację nie ma znaczenia.
+Cena osiąga maksimum w punkcie C i cofa się do B. Muszla zostaje potwierdzona, kiedy dochodzi do zamknięcia kursu powyżej jej wierzchołka. Poziom ten zaznaczyłem na wykresie poziomą linią.
+Formacja muszli wygląda jak odwrócona o 180 stopni litera J – tak jak w ramce na diagramie.
+Cena zaczyna się wznosić wzdłuż linii zbliżonej do prostej, ale równie dobrze może zwolnić tempo, przystanąć lub poruszać się po linii zakrzywionej.
+Wierzchołek formacji jest zaokrąglony – zwrot dokonuje się stopniowo, zwłaszcza w mniejszych formacjach. Formacje większe często mają kształt nieregularny.
+Spadek do punktu B może znieść większą bądź mniejszą część ruchu AC, ale często znosi około 53 procent. Należy jednak spodziewać się różnych wielkości zniesienia. Na wykresie z diagramu 3.4 wynosi ono 31 procent.
+Oto wskazówki dotyczące rozpoznawania formacji odwróconej muszli zwyżkującej:
+Cena zaczyna się wznosić po linii prostej, choć czasem jej wykres zagina się w prawo. Dopuszczalne są krótkie okresy konsolidacji.
+Wierzchołek formacji powinien być łagodnie zaokrąglony, zwłaszcza w formacjach niewielkich. W dużych formacjach może być bardziej postrzępiony.
+[Drugie zdjęcie]
+W 653 zbadanych przeze mnie formacjach średnie zniesienie pierwszego ruchu wzrostowego wyniosło 53 procent.
+Nie należy korzystać z formacji, w których zniesienie przekroczyło 62 procent.
+Formacja zostaje potwierdzona, gdy cena zamyka się powyżej jej wierzchołka.
+WYKORZYSTANIE MUSZLI W TRANSAKCJACH
+Oto kilka wskazówek dotyczących krótkoterminowych transakcji dokonywanych na podstawie formacji muszli. Mogą one być również przydatne w transakcjach o innych perspektywach czasowych.
+Na diagramie 3.4 widać świecę D o długim dolnym cieniu. Ponieważ jednak jej minimum jest wyższe od minimum świecy B, można ją uznać za sygnał kupna. Zmierz odległość między obecną ceną zamknięcia a wierzchołkiem formacji. Jeśli jest ona dość duża, by uzasadnić...
+[Trzecie zdjęcie]
+...krótkoterminową transakcję, możesz kupić akcje następnego dnia na otwarciu. Umieść jednak stop kilka centów poniżej świecy B, żeby zminimalizować ryzyko. Jeśli będziesz mieć szczęście, kurs wybije się z formacji, potwierdzając ją, i powędruje w górę.
+W ramce z diagramu 3.4 pokazuję często spotykany scenariusz. Spadkowa część muszli kończy się w punkcie G, czyli na linii trendu łączącej punkty E i F. Ten moment można uznać za sygnał kupna. Stop należy umieścić poniżej linii, pod punktem G. Krótkoterminowym poziomem docelowym jest poziom wierzchołka muszli.
+Najbardziej klasycznym sygnałem kupna jest zamknięcie ceny powyżej poziomu wierzchołka.
+Jeśli kurs rusza w górę z minimum świecy B, ale potem zawraca i zamyka się poniżej tego minimum, należy zamknąć pozycję, ponieważ najbardziej prawdopodobnym scenariuszem jest kontynuacja spadków.
+Zmierz wysokość muszli od punktu A do wierzchołka C. Dystans ten wyznacza osiągnięty poziom docelowy w 60 procentach wybić. Zastosuj więc 60 procent tej odległości – uzyskasz w ten sposób poziom docelowy, który jest osiągany w 75 procentach formacji potwierdzonych zamknięciem powyżej poziomu wierzchołka. Sprawdzaj jednak, czy po drodze nie ma znaczących obszarów oporu, które mogłyby powstrzymać wzrosty. Jeśli są, zrealizuj zysk wcześniej.
+Zdarza się, że w czasie jednego trendu pojawia się kilka formacji odwróconej zwyżkującej muszli. Jeśli jednak cena spadnie zbyt głęboko po prawej stronie muszli, czyli poniżej punktu A, może to oznaczać zakończenie trendu. Jednak ze statystyk wynika dość dziwna zależność między głębokością tego zniesienia a zasięgiem wybicia. Gdy zniesienie jest płytkie, wybicia są silne, lecz ich zasięg spada, gdy głębokość korekty zbliża się do 60 procent, a po przekroczeniu tego progu zaczyna rosnąć. Wybicia są najsłabsze, gdy zniesienie ruchu AC mieści się w przedziale od 40 do 60 procent, przy czym najsilniejsze wybicia następują wtedy, gdy korekta jest głębsza niż 60 procent.
+Mediana czasu upływającego między końcem formacji a momentem wybicia to 17 dni. Gdy czas ten jest krótszy od mediany lub jej równy, średni zysk wynosi 44 procent, a jeśli jest dłuższy – tylko 34 procent.
+
+
+
+Oto przykładowa formacja:
+1. początek muszli 30 listopada
+2. wierzchołek muszli około 27 grudnia
+3. koniec muszli 5 stycznia
+4. wybicie z muszli 11 lub 12 stycznia
+
+
+Wyniki za ten okres:
+
+2010-10-04        5.226      5.281      5.006      5.084      504,800
+2010-10-05        5.139      5.265      5.084      5.249      480,400
+2010-10-06        5.265      5.265      5.077      5.202      840,200
+2010-10-07        5.226      5.312      5.187      5.226      315,900
+2010-10-08        5.210      5.210      5.037      5.132      543,700
+2010-10-11        5.226      5.407      5.202      5.328      315,300
+2010-10-12        5.297      5.501      5.202      5.446      363,400
+2010-10-13        5.477      5.682      5.414      5.564      441,100
+2010-10-14        5.540      5.642      5.454      5.493      427,000
+2010-10-15        5.579      5.713      5.446      5.603      708,200
+2010-10-18        5.603      5.721      5.532      5.721      299,800
+2010-10-19        5.619      5.689      5.367      5.414      533,300
+2010-10-20        5.438      5.564      5.281      5.430      390,000
+2010-10-21        5.469      5.524      5.218      5.304      477,800 ◄
+2010-10-22        5.336      5.634      5.218      5.517      640,200
+2010-10-25        5.587      5.634      5.462      5.493      364,000
+2010-10-26        5.454      5.454      5.320      5.344      491,000
+2010-10-27        5.312      5.556      5.242      5.493      731,600
+2010-10-28        5.548      5.548      5.312      5.407      341,700
+2010-10-29        5.391      5.414      5.257      5.344      429,600
+2010-11-01        5.352      5.375      5.202      5.218      380,700
+2010-11-02        5.289      5.564      5.249      5.564      588,500
+2010-11-03        5.556      5.689      5.414      5.634      312,500
+2010-11-04        5.737      5.957      5.674      5.902      504,700
+2010-11-05        5.894      5.980      5.815      5.878      346,400
+2010-11-08        5.878      5.941      5.807      5.894      276,800
+2010-11-09        5.909      5.909      5.658      5.713      443,700
+2010-11-10        5.744      5.862      5.619      5.823      502,600
+2010-11-11        6.106      6.334      5.870      6.114    1,280,100
+2010-11-12        6.059      6.161      5.870      5.957      546,600
+2010-11-15        5.972      6.082      5.729      5.878      506,400
+2010-11-16        5.823      5.894      5.713      5.799      522,100
+2010-11-17        5.815      5.823      5.517      5.524      560,200
+2010-11-18        5.603      5.902      5.603      5.847      468,900
+2010-11-19        5.847      5.862      5.729      5.815      291,200
+2010-11-22        5.807      5.886      5.603      5.847      505,000
+2010-11-23        5.768      5.823      5.532      5.697      242,900
+2010-11-24        5.784      5.949      5.705      5.909      233,900
+2010-11-26        5.862      5.886      5.784      5.784      134,400
+2010-11-29        5.721      5.752      5.595      5.689      395,400
+2010-11-30        5.619      5.737      5.532      5.689      719,700
+2010-12-01        5.831      6.051      5.784      5.925    1,369,600
+2010-12-02        5.917      6.287      5.917      6.232      934,300
+2010-12-03        6.185      6.342      6.043      6.287      630,900
+2010-12-06        6.287      6.467      6.287      6.420      353,700
+2010-12-07        6.530      6.719      6.515      6.538      583,200
+2010-12-08        6.577      6.687      6.515      6.562      293,000
+2010-12-09        6.601      6.711      6.538      6.687      339,100
+2010-12-10        6.687      6.963      6.625      6.892      387,600
+2010-12-13        6.900      7.120      6.837      6.994      754,100
+2010-12-14        7.002      7.057      6.900      6.947      424,000
+2010-12-15        6.923      7.128      6.766      6.931      349,000
+2010-12-16        6.939      7.025      6.845      6.986      337,500
+2010-12-17        7.041      7.277      7.018      7.261    1,002,300
+2010-12-20        7.410      7.450      7.135      7.159      504,500
+2010-12-21        7.222      7.340      7.167      7.293      252,300
+2010-12-22        7.332      7.348      7.230      7.269      159,200
+2010-12-23        7.261      7.308      7.222      7.269      139,700
+2010-12-27        7.269      7.410      7.214      7.410      134,500
+2010-12-28        7.410      7.434      7.269      7.363      197,000
+2010-12-29        7.403      7.403      7.151      7.253      264,400
+2010-12-30        7.222      7.355      7.222      7.253      248,500
+2010-12-31        7.206      7.277      7.096      7.128      287,400
+2011-01-03        7.206      7.395      7.175      7.214      367,900
+2011-01-04        7.261      7.277      7.080      7.080      561,300
+2011-01-05        7.096      7.175      6.853      6.963      609,200
+2011-01-06        6.994      7.175      6.994      7.112      435,000
+2011-01-07        7.175      7.230      6.947      7.112      429,200
+2011-01-10        7.080      7.410      7.065      7.332      503,200
+2011-01-11        7.355      7.395      7.080      7.363      316,800
+2011-01-12        7.465      7.623      7.371      7.607      344,500
+2011-01-13        7.623      8.039      7.552      8.039      595,200
+2011-01-14        8.251      9.383      8.212      9.312    1,946,500
+2011-01-18        9.296      9.336      9.076      9.084    1,023,200
+2011-01-19        9.029      9.029      8.786      8.935      829,000
+2011-01-20        8.809      8.966      8.338      8.809      799,400
+2011-01-21        8.935      9.029      8.786      8.786      578,900
+2011-01-24        8.833      8.943      8.707      8.919      376,300
+2011-01-25        8.872      8.904      8.676      8.896      365,900
+2011-01-26        8.998      9.430      8.966      9.312      680,600
+2011-01-27        9.430      9.815      9.328      9.721      637,800
+2011-01-28        9.666      9.713      9.037      9.076      632,800
+
+
+Ascending and Inverted Scallops: Overview
+The inverted and ascending scallop looks like the right half of an umbrella. The beauty of this chart pattern is that it performs so well in both bull and bear markets, sporting a low break even failure rate and a large average rise.
+
+Discovered by Thomas Bulkowski in the early 2000's but it may have been uncovered by others earlier.
+
+Ascending and Inverted Scallops: Important Bull Market Results
+Overall performance rank (1 is best): 14 out of 39
+Break even failure rate: 9%
+Average rise: 45%
+Throwback rate: 66%
+Percentage meeting price target: 64%
+The above numbers are based on 1,776 perfect trades. See the glossary for definitions.
+
+Ascending and Inverted Scallops: Identification Guidelines
+Characteristic	Discussion
+Price trend	Most often you'll see these in an upward trend leading to the pattern or at the bullish turning point of a downward price trend.
+Shape	Inverted and backward J shape. It looks like the right half of an umbrella. The rise should be a straight, or nearly straight run up, then rounded at the top followed by a small decline.
+Smooth top	The peaks should form a rounded turn but larger patterns may not be as smooth.
+Retrace	The end of the pattern on the right usually retraces 54% of the prior up move. Avoid 100% retraces.
+Volume	Trends downward 70% of the time
+Confirmation	The pattern confirms when price closes above the highest high in the pattern.
+
+Top of page More
+
+Ascending and Inverted Scallops: Trading Tips
+Consult the associated figures on the right.
+
+Trading Tactic	Explanation	Inverted and ascending scallop measure rule
+The Measure Rule
+Inverted and ascending scallop avoidance
+New Stop Location
+Measure rule	Compute the height from the highest peak (B) to the lowest valley in the pattern (A) and then multiply it by the above 'percentage meeting price target.' Add the difference to the highest peak (B) to get a price target C. The link to the left provides more information on the measure rule.
+Stop	If price drops below the right scallop edge, sell. See the measure rule figure to the right for the proper stop location.
+Buy	Buy when price closes above the highest peak in the pattern (B).
+Swingers	Swing traders will want to buy when price bottoms on the right and sell when it climbs to the top of the pattern.
+Avoid	If price drops below the start of the pattern (A), then avoid this one.
+Avoid valley	If price forms a distinct right valley and then price drops below the valley, sell. The figure to the right ("New Stop Location") shows the proper location for a stop in this situation.
+Breakout volume	Heavy breakout volume suggests better performance. The link shown to the left discusses statistics on breakout volume. The following link gives additional information on other chart patterns that also do well after heavy breakout volume.
+Top of page More
+
+Inverted and ascending scallop chart pattern example
+
+Ascending and Inverted Scallops: Example
+The figure on the right shows an example of an inverted and ascending scallop chart pattern. Price bottoms at point A and then rises to B where it rounds downward to C.
+
+To calculate a price target, subtract the price of valley A from peak B. That finds the height. Multiply the height by 64% (the percentage meeting price target from Important Bull Market Results table near the top of this page) and add the result to the price at B. Place a stop loss order a few pennies below C, and raise the stop as price climbs.
+
+Top of page More
