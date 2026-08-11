@@ -1,0 +1,2 @@
+config,local_order,min_ac_rise_pct,min_ac_days,max_ac_days,min_retracement,max_retracement,max_breakout_days,require_uptrend_before_a,uptrend_lookback,min_uptrend_pct,trades,tickers,result_pct_count,result_pct_avg,result_pct_median,result_pct_win_rate,sl_hit_rate,result_pct_avg_no_sl,result_pct_median_no_sl,result_pct_count_no_sl
+ord=7_rise=0.25_ac=15-90_ret=0.4-0.62_brk=40,7,0.25,15,90,0.4,0.62,40,True,40,0.15,3284,893,3284,25.78573576983681,17.494056175976112,77.28380024360536,22.71619975639464,37.962677030833675,24.87495242730168,2538
