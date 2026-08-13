@@ -61,6 +61,36 @@ def _find_local_minima(df: pd.DataFrame, order: int = 5) -> List[int]:
     return minima
 
 
+def _arc_smoothness(df: pd.DataFrame, start_idx: int, peak_idx: int, end_idx: int) -> float:
+    """
+    Mierzy gładkość łuku A→C→B jako R² dopasowania parabolicznego do High.
+    Wartość bliska 1.0 = gładki łuk (kształt muszli).
+    Wartość bliska 0.0 = chaotyczny/skokowy ruch.
+
+    Używa High całego okna A→B żeby ocenić czy kształt przypomina odwróconą parabolę.
+    """
+    segment = df.iloc[start_idx: end_idx + 1]["High"].values
+    n = len(segment)
+    if n < 5:
+        return 0.0
+
+    x = np.arange(n, dtype=float)
+    # Dopasowanie kwadratowe (parabola)
+    try:
+        coeffs = np.polyfit(x, segment, 2)
+        fitted = np.polyval(coeffs, x)
+    except Exception:
+        return 0.0
+
+    # R² = 1 - SS_res/SS_tot
+    ss_res = float(np.sum((segment - fitted) ** 2))
+    ss_tot = float(np.sum((segment - segment.mean()) ** 2))
+    if ss_tot == 0:
+        return 1.0
+    r2 = 1.0 - ss_res / ss_tot
+    return float(max(0.0, r2))
+
+
 def _is_rising_trend(df: pd.DataFrame, start_idx: int, end_idx: int,
                      min_rise_pct: float = 0.10) -> bool:
     """
@@ -111,17 +141,23 @@ def _is_rounded_top(df: pd.DataFrame, peak_idx: int, window: int = 5) -> bool:
 def find_scallop_signals(
     df: pd.DataFrame,
     # --- parametry formacji ---
-    local_order: int = 5,               # okno dla lokalnych ekst.
-    min_ac_rise_pct: float = 0.12,      # min wzrost A→C (12%)
-    min_ac_days: int = 10,              # min długość ruchu A→C
+    local_order: int = 7,               # okno dla lokalnych ekst.
+    min_ac_rise_pct: float = 0.25,      # min wzrost A→C
+    min_ac_days: int = 15,              # min długość ruchu A→C
     max_ac_days: int = 90,              # max długość ruchu A→C
-    min_retracement: float = 0.20,      # min zniesienie C→B (20%)
-    max_retracement: float = 0.62,      # max zniesienie C→B (62%, Bulkowski: odrzuć > 62%)
+    min_retracement: float = 0.40,      # min zniesienie — Bulkowski avg 54%
+    max_retracement: float = 0.90,      # max zniesienie — Bulkowski: unikaj 100%
     max_breakout_days: int = 40,        # max dni od B do wybicia
+    # --- gładkość łuku ---
+    min_arc_smoothness: float = 0.90,   # R² ≥ 0.90 — bardzo gładki łuk muszli
+    # --- czystość wzrostu A→C (Bulkowski: "nearly straight run up") ---
+    max_rise_throwback: float = 0.12,   # max 12% cofnięcie od bieżącego szczytu w trakcie wzrostu
     # --- uptrend przed A ---
     require_uptrend_before_a: bool = True,
     uptrend_lookback: int = 40,
-    min_uptrend_pct: float = 0.08,
+    min_uptrend_pct: float = 0.15,
+    # --- wolumen (Bulkowski: maleje w 70% formacji) ---
+    check_volume_decline: bool = False,
 ) -> List[dict]:
     """
     Skanuj DataFrame i zwróć listę potwierdzonych formacji odwróconej muszli zwyżkującej.
@@ -178,9 +214,47 @@ def find_scallop_signals(
             if not _is_rising_trend(wdf, a_idx, c_idx, min_rise_pct=min_ac_rise_pct * 0.7):
                 continue
 
+            # ── Filtr: silny wzrost na początku (Bulkowski: "nearly straight run up") ──
+            # Pierwsza połowa ruchu A→C musi zawierać co najmniej 55% całego wzrostu.
+            # Formacja muszli zaczyna się od dynamicznego impulsu, który zwalnia przy szczycie.
+            mid_idx = a_idx + (c_idx - a_idx) // 2
+            mid_close = float(wdf.iloc[mid_idx]["Close"])
+            a_close = float(wdf.iloc[a_idx]["Close"])
+            c_close = float(wdf.iloc[c_idx]["Close"])
+            total_rise = c_close - a_close
+            first_half_rise = mid_close - a_close
+            if total_rise > 0 and (first_half_rise / total_rise) < 0.45:
+                # Wzrost skupiony w drugiej połowie — to nie jest muszla, to ruch liniowy lub odwrócony
+                continue
+
+            # ── Filtr: czysty wzrost A→C bez istotnych cofnięć ──
+            # Bulkowski: "nearly straight run up" — max cofnięcie od bieżącego szczytu
+            # w trakcie wzrostu nie może przekroczyć max_rise_throwback.
+            # Analogia do max_throwback_in_decline z double_bottom.
+            closes_ac = wdf["Close"].values[a_idx: c_idx + 1]
+            running_max = closes_ac[0]
+            max_throwback_rise = 0.0
+            for c in closes_ac[1:]:
+                if c > running_max:
+                    running_max = c
+                elif running_max > 0:
+                    throwback = (running_max - c) / running_max
+                    if throwback > max_throwback_rise:
+                        max_throwback_rise = throwback
+            if max_throwback_rise > max_rise_throwback:
+                continue
+
             # Sprawdź zaokrąglony wierzchołek C
             if not _is_rounded_top(wdf, c_idx, window=local_order):
                 continue
+
+            # Sprawdź gładkość łuku (Bulkowski: "nearly straight run up, rounded at top")
+            # Mierzymy R² parabolicznego dopasowania do całego okna A→C
+            # Wymagamy umiarkowanie gładkiego łuku żeby odrzucić skokowe/rwane formacje
+            if min_arc_smoothness > 0:
+                smoothness = _arc_smoothness(wdf, a_idx, c_idx, c_idx)
+                if smoothness < min_arc_smoothness:
+                    continue
 
             # Sprawdź trend wzrostowy przed A (opcjonalnie)
             if require_uptrend_before_a:
@@ -280,16 +354,19 @@ def find_scallop_signals(
 
 def _check_scallop_on_df(
     df: pd.DataFrame,
-    local_order: int = 5,
-    min_ac_rise_pct: float = 0.12,
-    min_ac_days: int = 10,
+    local_order: int = 7,
+    min_ac_rise_pct: float = 0.25,
+    min_ac_days: int = 15,
     max_ac_days: int = 90,
-    min_retracement: float = 0.20,
-    max_retracement: float = 0.62,
+    min_retracement: float = 0.40,
+    max_retracement: float = 0.90,
     max_breakout_days: int = 40,
+    min_arc_smoothness: float = 0.85,
+    max_rise_throwback: float = 0.08,
     require_uptrend_before_a: bool = True,
     uptrend_lookback: int = 40,
-    min_uptrend_pct: float = 0.08,
+    min_uptrend_pct: float = 0.15,
+    check_volume_decline: bool = False,
 ) -> Optional[str]:
     signals = find_scallop_signals(
         df=df,
@@ -300,9 +377,12 @@ def _check_scallop_on_df(
         min_retracement=min_retracement,
         max_retracement=max_retracement,
         max_breakout_days=max_breakout_days,
+        min_arc_smoothness=min_arc_smoothness,
+        max_rise_throwback=max_rise_throwback,
         require_uptrend_before_a=require_uptrend_before_a,
         uptrend_lookback=uptrend_lookback,
         min_uptrend_pct=min_uptrend_pct,
+        check_volume_decline=check_volume_decline,
     )
     if not signals:
         return None
@@ -318,19 +398,22 @@ def _check_scallop_on_df(
 
 def check_scallop_today(
     prices: Dict[pd.Timestamp, Dict[str, float]],
-    local_order: int = 5,
-    min_ac_rise_pct: float = 0.12,
-    min_ac_days: int = 10,
+    local_order: int = 7,
+    min_ac_rise_pct: float = 0.25,
+    min_ac_days: int = 15,
     max_ac_days: int = 90,
-    min_retracement: float = 0.20,
-    max_retracement: float = 0.62,
+    min_retracement: float = 0.40,
+    max_retracement: float = 0.90,
     max_breakout_days: int = 40,
+    min_arc_smoothness: float = 0.85,
+    max_rise_throwback: float = 0.08,
     require_uptrend_before_a: bool = True,
     uptrend_lookback: int = 40,
-    min_uptrend_pct: float = 0.08,
+    min_uptrend_pct: float = 0.15,
+    check_volume_decline: bool = False,
 ) -> Optional[str]:
     """
-    Sprawdź czy dzisiaj (ostatni bar) pojawia się wybicie z formacji odwróconej muszli.
+    Sprawdź czy dzisiaj (ostatni bar) pojawia się wybicie z formacji muszli.
     `prices` – słownik {timestamp: {Open, High, Low, Close, Volume}}.
     """
     if not prices:
@@ -345,7 +428,10 @@ def check_scallop_today(
         min_retracement=min_retracement,
         max_retracement=max_retracement,
         max_breakout_days=max_breakout_days,
+        min_arc_smoothness=min_arc_smoothness,
+        max_rise_throwback=max_rise_throwback,
         require_uptrend_before_a=require_uptrend_before_a,
         uptrend_lookback=uptrend_lookback,
         min_uptrend_pct=min_uptrend_pct,
+        check_volume_decline=check_volume_decline,
     )

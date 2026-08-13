@@ -182,15 +182,18 @@ def build_param_sets() -> list[dict[str, Any]]:
     return [
         {
             "local_order": 7,
-            "min_ac_rise_pct": 0.25,    # mocniejszy ruch A→C (było 0.20)
+            "min_ac_rise_pct": 0.25,
             "min_ac_days": 15,
             "max_ac_days": 90,
-            "min_retracement": 0.40,    # bliżej Bulkowskiego avg 53% (było 0.35)
-            "max_retracement": 0.62,
+            "min_retracement": 0.40,
+            "max_retracement": 0.90,    # Bulkowski: unikaj 100%
             "max_breakout_days": 40,
+            "min_arc_smoothness": 0.90,
+            "max_rise_throwback": 0.12,  # max 12% cofnięcie w trakcie wzrostu A→C
             "require_uptrend_before_a": True,
             "uptrend_lookback": 40,
             "min_uptrend_pct": 0.15,
+            "check_volume_decline": False,
         }
     ]
 
@@ -232,9 +235,12 @@ def backtest_scallop_for_ticker(
         min_retracement=params["min_retracement"],
         max_retracement=params["max_retracement"],
         max_breakout_days=params["max_breakout_days"],
+        min_arc_smoothness=params.get("min_arc_smoothness", 0.85),
+        max_rise_throwback=params.get("max_rise_throwback", 0.08),
         require_uptrend_before_a=params["require_uptrend_before_a"],
         uptrend_lookback=params["uptrend_lookback"],
         min_uptrend_pct=params["min_uptrend_pct"],
+        check_volume_decline=params.get("check_volume_decline", False),
     )
 
     if not signals:

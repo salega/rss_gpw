@@ -31,7 +31,7 @@ from plotly.subplots import make_subplots
 import yfinance as yf
 
 # Margines po obu stronach formacji (dni kalendarzowych)
-MARGIN_DAYS = 120
+MARGIN_DAYS = 60
 
 
 def parse_csv_row(line: str) -> dict:
@@ -48,14 +48,10 @@ def parse_csv_row(line: str) -> dict:
     if len(parts) < 20:
         raise ValueError(f"Za mało kolumn: {len(parts)}")
 
-    # Wykryj format po sygnale
-    # Double bottom: ticker na poz. 9, sygnał na 12
-    # Scallop:       ticker na poz. 11, sygnał na 14
-    signal_db = parts[12].strip() if len(parts) > 12 else ""
-    signal_sc = parts[14].strip() if len(parts) > 14 else ""
-
-    is_double_bottom = "🔻" in signal_db
-    is_scallop = "🐚" in signal_sc or "🐚" in signal_db
+    # Wykryj format — szukaj emoji w dowolnej kolumnie
+    all_parts = " ".join(parts)
+    is_double_bottom = "🔻" in all_parts
+    is_scallop = "🐚" in all_parts
 
     if is_double_bottom:
         return {
@@ -74,21 +70,25 @@ def parse_csv_row(line: str) -> dict:
             "stop_price":          float(parts[24]) if len(parts) > 24 else None,
         }
     elif is_scallop:
+        # Format aktualny: config(0)...check_volume_decline(13), ticker(14), date(15),
+        # close_event(16), signal(17), a_date(18), c_date(19), b_date(20),
+        # a_price(21), c_price(22), b_price(23), ret_pct(24), ac_rise(25),
+        # ac_days(26), bc_days(27), breakout_days(28), stop_price(29)
         return {
             "format":          "scallop",
-            "ticker":          parts[11].strip(),
-            "breakout_date":   parts[12].strip(),
-            "breakout_price":  float(parts[13]),
-            "signal":          parts[14].strip(),
-            "a_date":          parts[15].strip(),
-            "c_date":          parts[16].strip(),
-            "b_date":          parts[17].strip(),
-            "a_price":         float(parts[18]),
-            "c_price":         float(parts[19]),
-            "b_price":         float(parts[20]),
-            "retracement_pct": float(parts[21]) if len(parts) > 21 else None,
-            "ac_rise_pct":     float(parts[22]) if len(parts) > 22 else None,
-            "stop_price":      float(parts[26]) if len(parts) > 26 else None,
+            "ticker":          parts[14].strip(),
+            "breakout_date":   parts[15].strip(),
+            "breakout_price":  float(parts[16]),
+            "signal":          parts[17].strip(),
+            "a_date":          parts[18].strip(),
+            "c_date":          parts[19].strip(),
+            "b_date":          parts[20].strip(),
+            "a_price":         float(parts[21]),
+            "c_price":         float(parts[22]),
+            "b_price":         float(parts[23]),
+            "retracement_pct": float(parts[24]) if len(parts) > 24 else None,
+            "ac_rise_pct":     float(parts[25]) if len(parts) > 25 else None,
+            "stop_price":      float(parts[29]) if len(parts) > 29 else None,
         }
     else:
         raise ValueError(f"Nierozpoznany format CSV (brak 🔻 ani 🐚 w sygnale)")

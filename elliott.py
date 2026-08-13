@@ -9,6 +9,7 @@ import yfinance as yf
 from data import SWIG_80, MWIG_40, WIG_20, SP_500, RUSSELL_2000
 from formations.double_bottom import check_double_bottom_today
 from formations.flag import check_flag_breakout_today
+from formations.scallop import check_scallop_today
 from formations.nr7 import check_nr7_confirmed_today
 from send_email import send_email
 from util import check_if_price_above_emas
@@ -90,6 +91,21 @@ def calculate_potential(company_abbr: str, market_suffix: str = ".WA"):
         check_volume=False,
         # Złota konfiguracja: 497 trades, +29.0% avg, 87.4% win rate, 12.1% SL
     )
+    scallop_breakout_today = check_scallop_today(
+        prices,
+        min_ac_rise_pct=0.25,
+        min_ac_days=15,
+        max_ac_days=90,
+        min_retracement=0.40,
+        max_retracement=0.90,
+        max_breakout_days=40,
+        min_arc_smoothness=0.90,
+        max_rise_throwback=0.12,
+        require_uptrend_before_a=True,
+        uptrend_lookback=40,
+        min_uptrend_pct=0.15,
+        # Finalna konfiguracja: 241 trades, +27.6% avg, 84.6% win rate, 15.4% SL
+    )
 
     return {
         "company": company_abbr,
@@ -106,6 +122,7 @@ def calculate_potential(company_abbr: str, market_suffix: str = ".WA"):
         "flat_base_breakout_today": flat_base_breakout_today,
         "flag_breakout_today": flag_breakout_today,
         "double_bottom_breakout_today": double_bottom_breakout_today,
+        "scallop_breakout_today": scallop_breakout_today,
     }
 
 
@@ -139,6 +156,7 @@ def format_potential(potential):
     flat_base_breakout = build_row(potential.get("flat_base_breakout_today"))
     flag_breakout = build_row(potential.get("flag_breakout_today"))
     double_bottom_breakout = build_row(potential.get("double_bottom_breakout_today"))
+    scallop_breakout = build_row(potential.get("scallop_breakout_today"))
 
     formatted_entry = f"""\
 <div style="font-size: 0.88em; margin-top: 20px; padding: 0; line-height: 1.5;">
@@ -162,6 +180,7 @@ def format_potential(potential):
     {flat_base_breakout}
     {flag_breakout}
     {double_bottom_breakout}
+    {scallop_breakout}
   </table>
 </div>"""
     return formatted_entry
@@ -185,7 +204,8 @@ def get_if_has_potential(company, market_suffix: str = ".WA"):
 
     hit = bool(potential and (potential["rectangle_breakout_today"]
                               or potential["flat_base_breakout_today"] or potential["flag_breakout_today"]
-                              or potential["double_bottom_breakout_today"]))
+                              or potential["double_bottom_breakout_today"]
+                              or potential["scallop_breakout_today"]))
     _log_progress(company, market_suffix, hit)
 
     if hit:
