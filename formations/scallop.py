@@ -139,25 +139,25 @@ def _is_rounded_top(df: pd.DataFrame, peak_idx: int, window: int = 5) -> bool:
 # ---------------------------------------------------------------------------
 
 def find_scallop_signals(
-    df: pd.DataFrame,
-    # --- parametry formacji ---
-    local_order: int = 7,               # okno dla lokalnych ekst.
-    min_ac_rise_pct: float = 0.25,      # min wzrost A→C
-    min_ac_days: int = 15,              # min długość ruchu A→C
-    max_ac_days: int = 90,              # max długość ruchu A→C
-    min_retracement: float = 0.40,      # min zniesienie — Bulkowski avg 54%
-    max_retracement: float = 0.90,      # max zniesienie — Bulkowski: unikaj 100%
-    max_breakout_days: int = 40,        # max dni od B do wybicia
-    # --- gładkość łuku ---
-    min_arc_smoothness: float = 0.90,   # R² ≥ 0.90 — bardzo gładki łuk muszli
-    # --- czystość wzrostu A→C (Bulkowski: "nearly straight run up") ---
-    max_rise_throwback: float = 0.12,   # max 12% cofnięcie od bieżącego szczytu w trakcie wzrostu
-    # --- uptrend przed A ---
-    require_uptrend_before_a: bool = True,
-    uptrend_lookback: int = 40,
-    min_uptrend_pct: float = 0.15,
-    # --- wolumen (Bulkowski: maleje w 70% formacji) ---
-    check_volume_decline: bool = False,
+        df: pd.DataFrame,
+        # --- parametry formacji ---
+        local_order: int = 7,               # okno dla lokalnych ekst.
+        min_ac_rise_pct: float = 0.25,      # min wzrost A→C
+        min_ac_days: int = 15,              # min długość ruchu A→C
+        max_ac_days: int = 90,              # max długość ruchu A→C
+        min_retracement: float = 0.40,      # min zniesienie — Bulkowski avg 54%
+        max_retracement: float = 0.90,      # max zniesienie — Bulkowski: unikaj 100%
+        max_breakout_days: int = 30,        # Bulkowski mediana 17 dni — max ~1.75× mediany
+        # --- gładkość łuku ---
+        min_arc_smoothness: float = 0.90,   # R² ≥ 0.90 — bardzo gładki łuk muszli
+        # --- czystość wzrostu A→C (Bulkowski: "nearly straight run up") ---
+        max_rise_throwback: float = 0.12,   # max 12% cofnięcie od bieżącego szczytu w trakcie wzrostu
+        # --- uptrend przed A ---
+        require_uptrend_before_a: bool = True,
+        uptrend_lookback: int = 40,
+        min_uptrend_pct: float = 0.15,
+        # --- wolumen (Bulkowski: maleje w 70% formacji) ---
+        check_volume_decline: bool = False,
 ) -> List[dict]:
     """
     Skanuj DataFrame i zwróć listę potwierdzonych formacji odwróconej muszli zwyżkującej.
@@ -353,20 +353,20 @@ def find_scallop_signals(
 # ---------------------------------------------------------------------------
 
 def _check_scallop_on_df(
-    df: pd.DataFrame,
-    local_order: int = 7,
-    min_ac_rise_pct: float = 0.25,
-    min_ac_days: int = 15,
-    max_ac_days: int = 90,
-    min_retracement: float = 0.40,
-    max_retracement: float = 0.90,
-    max_breakout_days: int = 40,
-    min_arc_smoothness: float = 0.85,
-    max_rise_throwback: float = 0.08,
-    require_uptrend_before_a: bool = True,
-    uptrend_lookback: int = 40,
-    min_uptrend_pct: float = 0.15,
-    check_volume_decline: bool = False,
+        df: pd.DataFrame,
+        local_order: int = 7,
+        min_ac_rise_pct: float = 0.25,
+        min_ac_days: int = 15,
+        max_ac_days: int = 90,
+        min_retracement: float = 0.40,
+        max_retracement: float = 0.90,
+        max_breakout_days: int = 30,
+        min_arc_smoothness: float = 0.85,
+        max_rise_throwback: float = 0.08,
+        require_uptrend_before_a: bool = True,
+        uptrend_lookback: int = 40,
+        min_uptrend_pct: float = 0.15,
+        check_volume_decline: bool = False,
 ) -> Optional[str]:
     signals = find_scallop_signals(
         df=df,
@@ -397,20 +397,20 @@ def _check_scallop_on_df(
 # ---------------------------------------------------------------------------
 
 def check_scallop_today(
-    prices: Dict[pd.Timestamp, Dict[str, float]],
-    local_order: int = 7,
-    min_ac_rise_pct: float = 0.25,
-    min_ac_days: int = 15,
-    max_ac_days: int = 90,
-    min_retracement: float = 0.40,
-    max_retracement: float = 0.90,
-    max_breakout_days: int = 40,
-    min_arc_smoothness: float = 0.85,
-    max_rise_throwback: float = 0.08,
-    require_uptrend_before_a: bool = True,
-    uptrend_lookback: int = 40,
-    min_uptrend_pct: float = 0.15,
-    check_volume_decline: bool = False,
+        prices: Dict[pd.Timestamp, Dict[str, float]],
+        local_order: int = 7,
+        min_ac_rise_pct: float = 0.25,
+        min_ac_days: int = 15,
+        max_ac_days: int = 90,
+        min_retracement: float = 0.40,
+        max_retracement: float = 0.90,
+        max_breakout_days: int = 30,
+        min_arc_smoothness: float = 0.85,
+        max_rise_throwback: float = 0.08,
+        require_uptrend_before_a: bool = True,
+        uptrend_lookback: int = 40,
+        min_uptrend_pct: float = 0.15,
+        check_volume_decline: bool = False,
 ) -> Optional[str]:
     """
     Sprawdź czy dzisiaj (ostatni bar) pojawia się wybicie z formacji muszli.
