@@ -211,12 +211,15 @@ def plot_candles(
 
 
 def main() -> None:
-    print("Tryb: [1] wklej wiersz CSV z raportu  [2] podaj ticker i daty ręcznie")
-    mode = input("> ").strip()
+    print("Wklej wiersz CSV lub podaj ticker (np. BRKS):")
+    line = input("> ").strip()
+
+    # Autodetekt: brak przecinka = ticker ręczny, jest przecinek = wiersz CSV
+    mode = "1" if "," in line else "2"
 
     if mode == "2":
-        ticker     = input("Ticker (np. BRKS, LLY): ").strip().upper()
-        suffix_in  = input("Sufiks rynku (.WA dla GPW, puste dla US): ").strip()
+        ticker    = line.upper() if ("," not in line and line) else input("Ticker: ").strip().upper()
+        suffix_in = input("Sufiks (.WA dla GPW, puste dla US) [Enter=US]: ").strip()
         start_str  = input("Data początkowa (YYYY-MM-DD): ").strip()
         end_str    = input("Data końcowa   (YYYY-MM-DD): ").strip()
 
@@ -253,10 +256,7 @@ def main() -> None:
                      title=f"{symbol}  {start_str} → {end_str}")
         return
 
-    # --- Tryb 1: wiersz CSV ---
-    print("Wklej wiersz CSV z raportu i naciśnij Enter (lub wpisz 'q' aby wyjść):")
-    line = sys.stdin.readline().strip()
-
+    # --- Tryb 1: wiersz CSV — line już odczytany wcześniej ---
     if line.lower() in ("q", "quit", "exit", ""):
         print("Wyjście.")
         return
