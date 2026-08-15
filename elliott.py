@@ -7,6 +7,7 @@ import pandas as pd
 import yfinance as yf
 
 from data import SWIG_80, MWIG_40, WIG_20, SP_500, RUSSELL_2000
+from formations.bump_and_run import check_bump_and_run_today
 from formations.double_bottom import check_double_bottom_today
 from formations.flag import check_flag_breakout_today
 from formations.scallop import check_scallop_today
@@ -17,7 +18,7 @@ from util import get_max_value
 
 warnings.simplefilter(action='ignore', category=FutureWarning)
 INCLUDE_DOWN_NR7 = False
-DATE_TO_SIMULATE = None #datetime(2055, 10, 3)
+DATE_TO_SIMULATE = None # datetime(1988, 1, 26)
 
 
 def get_last_year_price_data(company_abbr: str, market_suffix: str = ".WA"):
@@ -106,6 +107,19 @@ def calculate_potential(company_abbr: str, market_suffix: str = ".WA"):
         min_uptrend_pct=0.15,
         # Finalna konfiguracja: 241 trades, +27.6% avg, 84.6% win rate, 15.4% SL
     )
+    bump_and_run_today = check_bump_and_run_today(
+        prices,
+        min_lead_in_days=35,
+        max_lead_in_days=120,
+        max_lead_in_angle=45.0,
+        min_bump_days=10,
+        max_bump_days=90,
+        min_bump_angle=60.0,
+        min_bump_height_ratio=2.0,
+        max_breakout_days=90,
+        local_order=25,
+        # Finalna konfiguracja: 4357 trades, +28.1% avg, 90.7% win rate, 9.3% SL
+    )
 
     return {
         "company": company_abbr,
@@ -123,6 +137,7 @@ def calculate_potential(company_abbr: str, market_suffix: str = ".WA"):
         "flag_breakout_today": flag_breakout_today,
         "double_bottom_breakout_today": double_bottom_breakout_today,
         "scallop_breakout_today": scallop_breakout_today,
+        "bump_and_run_today": bump_and_run_today,
     }
 
 
@@ -157,6 +172,7 @@ def format_potential(potential):
     flag_breakout = build_row(potential.get("flag_breakout_today"))
     double_bottom_breakout = build_row(potential.get("double_bottom_breakout_today"))
     scallop_breakout = build_row(potential.get("scallop_breakout_today"))
+    bump_and_run = build_row(potential.get("bump_and_run_today"))
 
     formatted_entry = f"""\
 <div style="font-size: 0.88em; margin-top: 20px; padding: 0; line-height: 1.5;">
@@ -181,6 +197,7 @@ def format_potential(potential):
     {flag_breakout}
     {double_bottom_breakout}
     {scallop_breakout}
+    {bump_and_run}
   </table>
 </div>"""
     return formatted_entry
@@ -205,7 +222,8 @@ def get_if_has_potential(company, market_suffix: str = ".WA"):
     hit = bool(potential and (potential["rectangle_breakout_today"]
                               or potential["flat_base_breakout_today"] or potential["flag_breakout_today"]
                               or potential["double_bottom_breakout_today"]
-                              or potential["scallop_breakout_today"]))
+                              or potential["scallop_breakout_today"]
+                              or potential["bump_and_run_today"]))
     _log_progress(company, market_suffix, hit)
 
     if hit:

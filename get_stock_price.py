@@ -52,6 +52,7 @@ def parse_csv_row(line: str) -> dict:
     all_parts = " ".join(parts)
     is_double_bottom = "🔻" in all_parts
     is_scallop = "🐚" in all_parts
+    is_brrb = "🍳" in all_parts
 
     if is_double_bottom:
         return {
@@ -90,8 +91,30 @@ def parse_csv_row(line: str) -> dict:
             "ac_rise_pct":     float(parts[25]) if len(parts) > 25 else None,
             "stop_price":      float(parts[29]) if len(parts) > 29 else None,
         }
+    elif is_brrb:
+        # Format BRRB: config(0)...local_order(9), ticker(10), date(11), close(12),
+        # signal(13), lead_in_start(14), lead_in_end(15), bump_low(16),
+        # lead_in_height(17), bump_height(18), bump_ratio(19),
+        # lead_in_days(20), bump_days(21), breakout_days(22),
+        # pattern_high(23), tl_at_breakout(24), stop_price(25)
+        return {
+            "format":          "brrb",
+            "ticker":          parts[10].strip(),
+            "breakout_date":   parts[11].strip(),
+            "breakout_price":  float(parts[12]),
+            "signal":          parts[13].strip(),
+            "a_date":          parts[14].strip(),   # lead_in_start
+            "c_date":          parts[15].strip(),   # lead_in_end (przejście lead-in→bump)
+            "b_date":          parts[16].strip(),   # bump_low
+            "a_price":         None,                # brak bezpośredniej ceny start
+            "c_price":         float(parts[24]) if len(parts) > 24 else None,  # tl_at_breakout
+            "b_price":         float(parts[25]) if len(parts) > 25 else None,  # stop_price (≈bump_low)
+            "bump_ratio":      float(parts[19]) if len(parts) > 19 else None,
+            "pattern_high":    float(parts[23]) if len(parts) > 23 else None,
+            "stop_price":      float(parts[25]) if len(parts) > 25 else None,
+        }
     else:
-        raise ValueError(f"Nierozpoznany format CSV (brak 🔻 ani 🐚 w sygnale)")
+        raise ValueError(f"Nierozpoznany format CSV (brak 🔻, 🐚 ani 🍳 w sygnale)")
 
 
 def plot_candles(
@@ -188,6 +211,49 @@ def plot_candles(
 
 
 def main() -> None:
+    print("Tryb: [1] wklej wiersz CSV z raportu  [2] podaj ticker i daty ręcznie")
+    mode = input("> ").strip()
+
+    if mode == "2":
+        ticker     = input("Ticker (np. BRKS, LLY): ").strip().upper()
+        suffix_in  = input("Sufiks rynku (.WA dla GPW, puste dla US): ").strip()
+        start_str  = input("Data początkowa (YYYY-MM-DD): ").strip()
+        end_str    = input("Data końcowa   (YYYY-MM-DD): ").strip()
+
+        chart_start = datetime.strptime(start_str, "%Y-%m-%d")
+        chart_end   = datetime.strptime(end_str, "%Y-%m-%d")
+        symbol      = ticker + suffix_in
+        MARKERS     = {}
+        formation_dates: set = set()
+        hlines: list = []
+
+        print(f"\nPobieram: {symbol} ...\n")
+        df = yf.download(symbol, start=chart_start,
+                         end=chart_end + timedelta(days=1),
+                         auto_adjust=True, progress=False)
+        if df is None or df.empty:
+            print("Brak danych.")
+            return
+        if isinstance(df.columns, pd.MultiIndex):
+            df = df.xs(symbol, axis=1, level=-1)
+        cols = [c for c in ["Open", "High", "Low", "Close", "Volume"] if c in df.columns]
+        df = df[cols].dropna().sort_index()
+
+        print(f"{'Data':<12} {'Open':>10} {'High':>10} {'Low':>10} {'Close':>10} {'Volume':>12}")
+        print("-" * 68)
+        for date, r in df.iterrows():
+            vol = f"{int(r['Volume']):,}" if "Volume" in r and pd.notna(r["Volume"]) else "n/a"
+            print(f"{str(date.date()):<12} {float(r['Open']):>10.3f} {float(r['High']):>10.3f}"
+                  f" {float(r['Low']):>10.3f} {float(r['Close']):>10.3f} {vol:>12}")
+        print(f"\nŁącznie: {len(df)} sesji")
+
+        plot_candles(df=df, symbol=symbol,
+                     start_str=start_str, end_str=end_str,
+                     markers=MARKERS, hlines=hlines,
+                     title=f"{symbol}  {start_str} → {end_str}")
+        return
+
+    # --- Tryb 1: wiersz CSV ---
     print("Wklej wiersz CSV z raportu i naciśnij Enter (lub wpisz 'q' aby wyjść):")
     line = sys.stdin.readline().strip()
 
@@ -209,7 +275,33 @@ def main() -> None:
     stop_price     = row.get("stop_price")
     fmt            = row.get("format", "double_bottom")
 
-    if fmt == "scallop":
+    if fmt == "brrb":
+        a_date  = row["a_date"]   # lead_in_start
+        c_date  = row["c_date"]   # lead_in_end (przejście lead-in→bump)
+        b_date  = row["b_date"]   # bump_low
+        c_price = row.get("c_price") or breakout_price  # tl_at_breakout
+        b_price = row.get("b_price") or 0.0
+        pattern_high = row.get("pattern_high")
+        formation_start = datetime.strptime(a_date, "%Y-%m-%d")
+        formation_end   = datetime.strptime(breakout_date, "%Y-%m-%d")
+        formation_dates = {a_date, c_date, b_date, breakout_date}
+        print(f"\nParsowano: {ticker}  |  {signal}")
+        print(f"Formacja:  Lead-in={a_date} → li_end={c_date} → Bump={b_date}")
+        print(f"Breakout:  {breakout_date}  @ {breakout_price:.3f}")
+        markers = {
+            a_date:        {"label": f"Lead-in start",        "color": "deepskyblue", "price": None},
+            c_date:        {"label": f"Lead-in end / Bump↓",  "color": "orange",      "price": None},
+            b_date:        {"label": f"Bump low (stop)",      "color": "tomato",      "price": None},
+            breakout_date: {"label": f"BREAKOUT @ {breakout_price:.3f}", "color": "springgreen", "price": None},
+        }
+        hlines = [
+            {"price": c_price, "label": f"Trendline @ breakout {c_price:.3f}", "color": "lime", "dash": "dash"},
+        ]
+        if stop_price:
+            hlines.append({"price": stop_price, "label": f"Stop {stop_price:.3f}", "color": "tomato", "dash": "dot"})
+        if pattern_high:
+            hlines.append({"price": pattern_high, "label": f"Target (high) {pattern_high:.3f}", "color": "gold", "dash": "dashdot"})
+    elif fmt == "scallop":
         a_date  = row["a_date"]
         c_date  = row["c_date"]
         b_date  = row["b_date"]

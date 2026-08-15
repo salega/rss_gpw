@@ -1,0 +1,2 @@
+config,min_lead_in_days,max_lead_in_days,max_lead_in_angle,min_bump_days,max_bump_days,min_bump_angle,min_bump_height_ratio,max_breakout_days,local_order,trades,tickers,result_pct_count,result_pct_avg,result_pct_median,result_pct_win_rate,sl_hit_rate,result_pct_avg_no_sl,result_pct_median_no_sl,result_pct_count_no_sl
+li=35-120_ang=45.0_bump=10-90_ratio=2.0,35,120,45.0,10,90,60.0,2.0,90,25,4357,1101,4357,28.146867633669657,18.707541592810184,90.68166169382603,9.295386733991279,33.55068723172838,21.716859472187124,3952
