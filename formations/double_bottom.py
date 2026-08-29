@@ -460,18 +460,18 @@ def check_double_bottom_today(
     prices: Dict[pd.Timestamp, Dict[str, float]],
     local_min_order: int = 5,
     min_separation_days: int = 10,
-    max_separation_days: int = 70,
+    max_separation_days: int = 100,        # złota konfiguracja
     max_bottom_diff_pct: float = 0.06,
-    min_peak_rise_pct: float = 0.10,
+    min_peak_rise_pct: float = 0.17,       # złota konfiguracja
     require_downtrend: bool = True,
     downtrend_lookback: int = 60,
-    min_downtrend_pct: float = 0.10,
+    min_downtrend_pct: float = 0.15,       # złota konfiguracja
     require_drop_into_l1: bool = True,
-    drop_into_l1_lookback: int = 30,
-    min_drop_into_l1: float = 0.05,
-    max_throwback_in_decline: float = 0.06,
+    drop_into_l1_lookback: int = 20,       # złota konfiguracja
+    min_drop_into_l1: float = 0.08,
+    max_throwback_in_decline: float = 0.08,  # złota konfiguracja
     bottom_window: int = 5,
-    check_volume: bool = True,
+    check_volume: bool = False,            # złota konfiguracja
 ) -> Optional[str]:
     """
     Sprawdź czy dzisiaj (ostatni bar) pojawia się potwierdzenie formacji podwójnego dna.

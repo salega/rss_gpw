@@ -74,57 +74,10 @@ def calculate_potential(company_abbr: str, market_suffix: str = ".WA"):
             local_min_value = float(val)
 
     nr7 = check_nr7_confirmed_today(prices)
-    flag_breakout_today = check_flag_breakout_today(
-        prices,
-        pole_min_days=4,
-        pole_max_days=40,
-        pole_min_growth=0.85,          # backtest używał 0.85, nie 0.90
-        pole_max_daily_decline=0.20,
-        max_days_without_new_high=3,
-        flag_min_days=3,               # backtest: 3, nie 5
-        flag_max_days_until_breakout=25,  # backtest: 25, nie 19
-        require_volume_decline=False,  # backtest: False (vol_any)
-        require_dense_flag=False,
-    )
-    double_bottom_breakout_today = check_double_bottom_today(
-        prices,
-        max_separation_days=100,
-        max_bottom_diff_pct=0.06,
-        min_peak_rise_pct=0.17,
-        min_downtrend_pct=0.15,
-        drop_into_l1_lookback=20,
-        max_throwback_in_decline=0.08,
-        check_volume=False,
-        # Złota konfiguracja: 497 trades, +29.0% avg, 87.4% win rate, 12.1% SL
-    )
-    scallop_breakout_today = check_scallop_today(
-        prices,
-        min_ac_rise_pct=0.25,
-        min_ac_days=15,
-        max_ac_days=90,
-        min_retracement=0.40,
-        max_retracement=0.90,
-        max_breakout_days=40,
-        min_arc_smoothness=0.90,
-        max_rise_throwback=0.12,
-        require_uptrend_before_a=True,
-        uptrend_lookback=40,
-        min_uptrend_pct=0.15,
-        # Finalna konfiguracja: 241 trades, +27.6% avg, 84.6% win rate, 15.4% SL
-    )
-    bump_and_run_today = check_bump_and_run_today(
-        prices,
-        min_lead_in_days=35,
-        max_lead_in_days=120,
-        max_lead_in_angle=45.0,
-        min_bump_days=10,
-        max_bump_days=90,
-        min_bump_angle=60.0,
-        min_bump_height_ratio=2.0,
-        max_breakout_days=90,
-        local_order=25,
-        # Finalna konfiguracja: 4357 trades, +28.1% avg, 90.7% win rate, 9.3% SL
-    )
+    flag_breakout_today = check_flag_breakout_today(prices)
+    double_bottom_breakout_today = check_double_bottom_today(prices)
+    scallop_breakout_today = check_scallop_today(prices)
+    bump_and_run_today = check_bump_and_run_today(prices)
 
     return {
         "company": company_abbr,

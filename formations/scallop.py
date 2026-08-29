@@ -147,7 +147,7 @@ def find_scallop_signals(
         max_ac_days: int = 90,              # max długość ruchu A→C
         min_retracement: float = 0.40,      # min zniesienie — Bulkowski avg 54%
         max_retracement: float = 0.90,      # max zniesienie — Bulkowski: unikaj 100%
-        max_breakout_days: int = 30,        # Bulkowski mediana 17 dni — max ~1.75× mediany
+        max_breakout_days: int = 40,        # finalna konfiguracja z backtestów
         # --- gładkość łuku ---
         min_arc_smoothness: float = 0.90,   # R² ≥ 0.90 — bardzo gładki łuk muszli
         # --- czystość wzrostu A→C (Bulkowski: "nearly straight run up") ---
@@ -360,9 +360,9 @@ def _check_scallop_on_df(
         max_ac_days: int = 90,
         min_retracement: float = 0.40,
         max_retracement: float = 0.90,
-        max_breakout_days: int = 30,
-        min_arc_smoothness: float = 0.85,
-        max_rise_throwback: float = 0.08,
+        max_breakout_days: int = 40,
+        min_arc_smoothness: float = 0.90,
+        max_rise_throwback: float = 0.12,
         require_uptrend_before_a: bool = True,
         uptrend_lookback: int = 40,
         min_uptrend_pct: float = 0.15,
@@ -404,9 +404,9 @@ def check_scallop_today(
         max_ac_days: int = 90,
         min_retracement: float = 0.40,
         max_retracement: float = 0.90,
-        max_breakout_days: int = 30,
-        min_arc_smoothness: float = 0.85,
-        max_rise_throwback: float = 0.08,
+        max_breakout_days: int = 40,
+        min_arc_smoothness: float = 0.90,
+        max_rise_throwback: float = 0.12,
         require_uptrend_before_a: bool = True,
         uptrend_lookback: int = 40,
         min_uptrend_pct: float = 0.15,

@@ -420,12 +420,12 @@ def check_flag_breakout_today(
         prices: Dict[pd.Timestamp, Dict[str, float]],
         pole_min_days: int = 4,
         pole_max_days: int = 40,
-        pole_min_growth: float = 0.90,
-        pole_max_daily_decline: float = 0.33,
-        max_days_without_new_high: int = 2,
-        flag_min_days: int = 5,
-        flag_max_days_until_breakout: int = 19,
-        require_volume_decline: bool = True,
+        pole_min_growth: float = 0.85,         # złota konfiguracja z backtestów
+        pole_max_daily_decline: float = 0.20,
+        max_days_without_new_high: int = 3,
+        flag_min_days: int = 3,
+        flag_max_days_until_breakout: int = 25,
+        require_volume_decline: bool = False,   # vol_any — lepsza skuteczność
         require_dense_flag: bool = False,
 ) -> Optional[str]:
     if not prices:
