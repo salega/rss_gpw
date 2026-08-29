@@ -599,12 +599,16 @@ def main() -> None:
 
     if MARKET == "NYSE":
         from data import ALL_US as tickers
-        start_date = datetime(1985, 1, 1)   # Bulkowski: styczeń 1985
-        end_date = datetime(2011, 1, 1)     # Bulkowski: styczeń 2011
+        start_date    = datetime(2024, 8, 29)
+        end_date      = datetime(2026, 8, 29)
+        signal_from   = pd.Timestamp(datetime(2025, 8, 29))
+        signal_cutoff = pd.Timestamp(datetime(2026, 8, 29))
     elif MARKET == "GPW":
         from data import ALL as tickers
-        start_date = datetime(1991, 1, 1)   # GPW: początki giełdy
-        end_date = datetime.today()
+        start_date    = datetime(1991, 1, 1)
+        end_date      = datetime.today()
+        signal_from   = None
+        signal_cutoff = None
     else:
         raise ValueError(f"Nieznany rynek: {MARKET}")
 
@@ -647,11 +651,14 @@ def main() -> None:
         for ticker_idx, (ticker, df) in enumerate(history_map.items(), start=1):
             ticker_start = perf_counter()
 
-            rows = backtest_flag_for_ticker(
+            detection_df = df.loc[df.index <= signal_cutoff] if signal_cutoff is not None else df
+            rows_all = backtest_flag_for_ticker(
                 ticker=ticker,
-                df=df,
+                df=detection_df,
                 params=params,
             )
+            # Filtruj sygnały spoza okna signal_from
+            rows = [r for r in rows_all if signal_from is None or pd.Timestamp(r["date"]) >= signal_from]
 
             ticker_elapsed = perf_counter() - ticker_start
             config_elapsed = perf_counter() - config_start

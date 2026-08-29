@@ -393,6 +393,7 @@ def backtest_double_bottom_for_ticker(
     df: pd.DataFrame,
     params: dict[str, Any],
     signal_cutoff: pd.Timestamp | None = None,
+    signal_from: pd.Timestamp | None = None,
 ) -> list[dict[str, Any]]:
     rows: list[dict[str, Any]] = []
 
@@ -400,8 +401,6 @@ def backtest_double_bottom_for_ticker(
     if df.empty or len(df) < min_bars:
         return rows
 
-    # Detekcja sygnałów na danych przyciętych do signal_cutoff (np. 2011-01-01)
-    # ale wyniki mierzone na pełnym df (np. do 2013-01-01)
     detection_df = df.loc[df.index <= signal_cutoff] if signal_cutoff is not None else df
 
     # Skanuj cały df jednorazowo — O(n), nie O(n²)
@@ -422,6 +421,8 @@ def backtest_double_bottom_for_ticker(
 
     for sig in signals:
         event_date = pd.Timestamp(sig["date"])
+        if signal_from is not None and event_date < signal_from:
+            continue
         try:
             event_idx = df.index.get_loc(event_date)
         except KeyError:
@@ -581,12 +582,14 @@ def main() -> None:
         all_tickers = ALL
         start_date = datetime(2013, 1, 1)
         end_date = datetime(2026, 5, 1)
-        signal_cutoff = None  # GPW — skanuj wszystko do końca danych
+        signal_from   = None
+        signal_cutoff = None
     elif MARKET == "NYSE":
         from data import ALL_US as all_tickers
-        start_date = datetime(1985, 1, 1)
-        end_date = datetime(2013, 1, 1)   # dane do 2013 — sygnały skanowane do 2011,
-        signal_cutoff = datetime(2011, 1, 1)  # ale wyniki mierzone do 2013 żeby zamknąć otwarte transakcje
+        start_date    = datetime(2024, 8, 29)
+        end_date      = datetime(2026, 8, 29)
+        signal_from   = pd.Timestamp(datetime(2025, 8, 29))
+        signal_cutoff = pd.Timestamp(datetime(2026, 8, 29))
     else:
         raise ValueError(f"Nieznany rynek: {MARKET}")
 
@@ -630,7 +633,7 @@ def main() -> None:
         config_rows: list[dict[str, Any]] = []
 
         for ticker, df in history_map.items():
-            rows = backtest_double_bottom_for_ticker(ticker=ticker, df=df, params=params, signal_cutoff=signal_cutoff)
+            rows = backtest_double_bottom_for_ticker(ticker=ticker, df=df, params=params, signal_cutoff=signal_cutoff, signal_from=signal_from)
 
             for row in rows:
                 l1_date  = pd.Timestamp(row["left_trough_date"]).strftime("%Y-%m-%d")

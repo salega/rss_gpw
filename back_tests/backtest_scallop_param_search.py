@@ -217,6 +217,7 @@ def backtest_scallop_for_ticker(
     df: pd.DataFrame,
     params: dict[str, Any],
     signal_cutoff: pd.Timestamp | None = None,
+    signal_from: pd.Timestamp | None = None,
 ) -> list[dict[str, Any]]:
     rows: list[dict[str, Any]] = []
 
@@ -248,6 +249,8 @@ def backtest_scallop_for_ticker(
 
     for sig in signals:
         event_date = pd.Timestamp(sig["date"])
+        if signal_from is not None and event_date < signal_from:
+            continue
         try:
             event_idx = df.index.get_loc(event_date)
         except KeyError:
@@ -355,12 +358,14 @@ def main() -> None:
         all_tickers = ALL
         start_date = datetime(2013, 1, 1)
         end_date = datetime(2026, 5, 1)
+        signal_from   = None
         signal_cutoff = None
     elif MARKET == "NYSE":
         from data import ALL_US as all_tickers
-        start_date = datetime(1985, 1, 1)
-        end_date = datetime(2013, 1, 1)
-        signal_cutoff = pd.Timestamp(datetime(2011, 1, 1))
+        start_date    = datetime(2024, 8, 29)
+        end_date      = datetime(2026, 8, 29)
+        signal_from   = pd.Timestamp(datetime(2025, 8, 29))
+        signal_cutoff = pd.Timestamp(datetime(2026, 8, 29))
     else:
         raise ValueError(f"Nieznany rynek: {MARKET}")
 
@@ -400,7 +405,8 @@ def main() -> None:
 
         for ticker, df in history_map.items():
             rows = backtest_scallop_for_ticker(
-                ticker=ticker, df=df, params=params, signal_cutoff=signal_cutoff
+                ticker=ticker, df=df, params=params,
+                signal_cutoff=signal_cutoff, signal_from=signal_from
             )
             for row in rows:
                 a_date  = pd.Timestamp(row["a_date"]).strftime("%Y-%m-%d") if row.get("a_date") else "?"

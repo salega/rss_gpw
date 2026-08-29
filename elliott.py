@@ -73,14 +73,19 @@ def calculate_potential(company_abbr: str, market_suffix: str = ".WA"):
         if float(val) < local_min_value:
             local_min_value = float(val)
 
-    is_gpw = market_suffix == ".WA"
-
     nr7 = check_nr7_confirmed_today(prices)
-    # rectangle_breakout_today = check_rectangle_breakout_today_daily_scan(prices) if is_gpw else None
-    # flat_base_breakout_today = check_flat_base_breakout_today(prices) if is_gpw else None
-    rectangle_breakout_today = None
-    flat_base_breakout_today = None
-    flag_breakout_today = check_flag_breakout_today(prices)
+    flag_breakout_today = check_flag_breakout_today(
+        prices,
+        pole_min_days=4,
+        pole_max_days=40,
+        pole_min_growth=0.85,          # backtest używał 0.85, nie 0.90
+        pole_max_daily_decline=0.20,
+        max_days_without_new_high=3,
+        flag_min_days=3,               # backtest: 3, nie 5
+        flag_max_days_until_breakout=25,  # backtest: 25, nie 19
+        require_volume_decline=False,  # backtest: False (vol_any)
+        require_dense_flag=False,
+    )
     double_bottom_breakout_today = check_double_bottom_today(
         prices,
         max_separation_days=100,
@@ -132,8 +137,6 @@ def calculate_potential(company_abbr: str, market_suffix: str = ".WA"):
         "last_value": f"{last_value:.2f}",
         "penultimate_value": f"{penultimate_value:.2f}",
         "nr7": nr7,
-        "rectangle_breakout_today": rectangle_breakout_today,
-        "flat_base_breakout_today": flat_base_breakout_today,
         "flag_breakout_today": flag_breakout_today,
         "double_bottom_breakout_today": double_bottom_breakout_today,
         "scallop_breakout_today": scallop_breakout_today,
@@ -219,8 +222,7 @@ def _log_progress(company: str, market_suffix: str, hit: bool) -> None:
 def get_if_has_potential(company, market_suffix: str = ".WA"):
     potential = calculate_potential(company, market_suffix=market_suffix)
 
-    hit = bool(potential and (potential["rectangle_breakout_today"]
-                              or potential["flat_base_breakout_today"] or potential["flag_breakout_today"]
+    hit = bool(potential and (potential["flag_breakout_today"]
                               or potential["double_bottom_breakout_today"]
                               or potential["scallop_breakout_today"]
                               or potential["bump_and_run_today"]))
