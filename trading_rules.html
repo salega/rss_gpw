@@ -1,0 +1,397 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Zasady Prowadzenia Pozycji – Formacje Techniczne</title>
+<style>
+  body { font-family: Arial, sans-serif; font-size: 13px; background: #0d1117; color: #e6edf3; margin: 0; padding: 16px; }
+  h1 { text-align: center; color: #58a6ff; margin-bottom: 4px; }
+  .subtitle { text-align: center; color: #8b949e; margin-bottom: 20px; font-size: 12px; }
+  table { width: 100%; border-collapse: collapse; table-layout: fixed; }
+  th { background: #161b22; color: #58a6ff; padding: 10px 8px; border: 1px solid #30363d; text-align: center; font-size: 14px; }
+  th.row-header { background: #0d1117; color: #8b949e; width: 160px; }
+  td { padding: 9px 8px; border: 1px solid #30363d; vertical-align: top; line-height: 1.5; }
+  td.row-header { background: #161b22; color: #e6edf3; font-weight: bold; font-size: 12px; text-align: center; }
+  tr:nth-child(even) td:not(.row-header) { background: #0d1117; }
+  tr:nth-child(odd) td:not(.row-header) { background: #111820; }
+  .green { color: #3fb950; font-weight: bold; }
+  .red { color: #f85149; font-weight: bold; }
+  .yellow { color: #d29922; font-weight: bold; }
+  .badge { display: inline-block; padding: 2px 7px; border-radius: 4px; font-size: 11px; font-weight: bold; margin: 1px; }
+  .badge-green { background: #1a4a2e; color: #3fb950; }
+  .badge-red { background: #4a1a1a; color: #f85149; }
+  .badge-blue { background: #1a2e4a; color: #58a6ff; }
+  .badge-yellow { background: #4a3a1a; color: #d29922; }
+  .stat-box { background: #161b22; border: 1px solid #30363d; border-radius: 6px; padding: 8px; margin-top: 6px; }
+  .stat-row { display: flex; justify-content: space-between; margin: 2px 0; font-size: 12px; }
+  .stat-label { color: #8b949e; }
+  .stat-val { color: #e6edf3; font-weight: bold; }
+  .stat-val.good { color: #3fb950; }
+  .stat-val.warn { color: #d29922; }
+  .emoji { font-size: 16px; }
+  ul { margin: 4px 0; padding-left: 18px; }
+  li { margin-bottom: 3px; }
+  .section-title { font-size: 11px; color: #8b949e; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 4px; }
+  hr { border-color: #30363d; margin: 8px 0; }
+</style>
+</head>
+<body>
+<h1>📊 Zasady Prowadzenia Pozycji – Formacje Techniczne</h1>
+<p class="subtitle">Backtest: NYSE | Metodologia Bulkowskiego (ultimate high = 20% drawdown od szczytu)</p>
+
+<table>
+  <thead>
+    <tr>
+      <th class="row-header">Kryterium</th>
+      <th>🍳 BRRB<br><small>Bump-and-Run Reversal Bottom</small></th>
+      <th>🔻 Double Bottom<br><small>Podwójne Dno</small></th>
+      <th>🚩 Flag<br><small>Flaga</small></th>
+      <th>🐚 Scallop<br><small>Inverted Ascending Scallop</small></th>
+    </tr>
+  </thead>
+  <tbody>
+
+    <!-- WYNIKI BACKTESTÓW -->
+    <tr>
+      <td class="row-header">📈 Wyniki Backtestów<br><small>(NYSE)</small></td>
+      <td>
+        <div class="stat-box">
+          <div class="stat-row"><span class="stat-label">Transakcje</span><span class="stat-val">4 357</span></div>
+          <div class="stat-row"><span class="stat-label">Tickers</span><span class="stat-val">1 101</span></div>
+          <div class="stat-row"><span class="stat-label">Avg zysk</span><span class="stat-val good">+28.1%</span></div>
+          <div class="stat-row"><span class="stat-label">Median zysk</span><span class="stat-val good">+18.7%</span></div>
+          <div class="stat-row"><span class="stat-label">Win rate</span><span class="stat-val good">90.7%</span></div>
+          <div class="stat-row"><span class="stat-label">SL hit rate</span><span class="stat-val warn">9.3%</span></div>
+          <div class="stat-row"><span class="stat-label">Avg zysk (bez SL)</span><span class="stat-val good">+33.6%</span></div>
+          <div class="stat-row"><span class="stat-label">Bulkowski avg</span><span class="stat-val good">+55%</span></div>
+        </div>
+      </td>
+      <td>
+        <div class="stat-box">
+          <div class="stat-row"><span class="stat-label">Transakcje</span><span class="stat-val">501</span></div>
+          <div class="stat-row"><span class="stat-label">Tickers</span><span class="stat-val">384</span></div>
+          <div class="stat-row"><span class="stat-label">Avg zysk</span><span class="stat-val good">+28.7%</span></div>
+          <div class="stat-row"><span class="stat-label">Median zysk</span><span class="stat-val good">+17.6%</span></div>
+          <div class="stat-row"><span class="stat-label">Win rate</span><span class="stat-val good">87.6%</span></div>
+          <div class="stat-row"><span class="stat-label">SL hit rate</span><span class="stat-val warn">12.4%</span></div>
+          <div class="stat-row"><span class="stat-label">Avg zysk (bez SL)</span><span class="stat-val good">+35.4%</span></div>
+          <div class="stat-row"><span class="stat-label">Bulkowski avg</span><span class="stat-val good">+40%</span></div>
+        </div>
+      </td>
+      <td>
+        <div class="stat-box">
+          <div class="stat-row"><span class="stat-label">Transakcje NYSE</span><span class="stat-val">333</span></div>
+          <div class="stat-row"><span class="stat-label">Transakcje GPW</span><span class="stat-val">22</span></div>
+          <div class="stat-row"><span class="stat-label">Avg zysk NYSE</span><span class="stat-val good">+20.8%</span></div>
+          <div class="stat-row"><span class="stat-label">Avg zysk GPW</span><span class="stat-val good">+30.0%</span></div>
+          <div class="stat-row"><span class="stat-label">Win rate NYSE</span><span class="stat-val good">79.8%</span></div>
+          <div class="stat-row"><span class="stat-label">Win rate GPW</span><span class="stat-val good">95.5%</span></div>
+          <div class="stat-row"><span class="stat-label">Max gain 20d avg</span><span class="stat-val good">+29.5%</span></div>
+          <div class="stat-row"><span class="stat-label">SL hit rate NYSE</span><span class="stat-val warn">16.8%</span></div>
+        </div>
+      </td>
+      <td>
+        <div class="stat-box">
+          <div class="stat-row"><span class="stat-label">Transakcje</span><span class="stat-val">241</span></div>
+          <div class="stat-row"><span class="stat-label">Tickers</span><span class="stat-val">204</span></div>
+          <div class="stat-row"><span class="stat-label">Avg zysk</span><span class="stat-val good">+27.6%</span></div>
+          <div class="stat-row"><span class="stat-label">Median zysk</span><span class="stat-val good">+16.2%</span></div>
+          <div class="stat-row"><span class="stat-label">Win rate</span><span class="stat-val good">84.6%</span></div>
+          <div class="stat-row"><span class="stat-label">SL hit rate</span><span class="stat-val warn">15.4%</span></div>
+          <div class="stat-row"><span class="stat-label">Avg zysk (bez SL)</span><span class="stat-val good">+35.4%</span></div>
+          <div class="stat-row"><span class="stat-label">Bulkowski avg (≤17d)</span><span class="stat-val good">+44%</span></div>
+        </div>
+      </td>
+    </tr>
+
+    <!-- KSZTAŁT FORMACJI -->
+    <tr>
+      <td class="row-header">🔍 Kształt Formacji</td>
+      <td>Patelnia przechylona w dół. 3 fazy:<br>1. <b>Lead-in</b>: łagodny spadek 0–45°<br>2. <b>Bump</b>: stromy spadek ≥60°, zaokrąglone dno<br>3. <b>Run</b>: odbicie i wybicie powyżej linii trendu</td>
+      <td>Dwa dołki (L1, L2) na podobnym poziomie. Szczyt między nimi = neckline. Poprzedzający trend spadkowy ≥15%.<br><br>Warianty: <span class="badge badge-blue">Adam&amp;Adam</span> <span class="badge badge-blue">Adam&amp;Eve</span> <span class="badge badge-blue">Eve&amp;Adam</span> <span class="badge badge-green">Eve&amp;Eve ★</span></td>
+      <td>Maszt: dynamiczny wzrost ≥85% w ≤40 sesjach. Flaga: korekta z malejącym wolumenem 3–25 sesji. Kurs nie spada poniżej połowy masztu.</td>
+      <td>Odwrócona litera J. Wzrost A→C (≥25%, 15–90 dni, gładki łuk R²≥0.90), zaokrąglony szczyt C, korekta C→B (40–90% zniesienia), wybicie powyżej C.</td>
+    </tr>
+
+    <!-- WEJŚCIE W POZYCJĘ -->
+    <tr>
+      <td class="row-header">🚀 Wejście w Pozycję</td>
+      <td>
+        <span class="badge badge-green">Close &gt; trendline_at_breakout</span><br><br>
+        Wejście gdy zamknięcie przebija linię trendu lead-in fazy. Sygnał zawiera wartość <code>trendline_at_breakout</code>.
+      </td>
+      <td>
+        <span class="badge badge-green">Close &gt; peak_price (neckline)</span><br><br>
+        Wejście gdy zamknięcie przebija szczyt między dołkami L1–L2 (linię potwierdzenia).
+      </td>
+      <td>
+        <span class="badge badge-green">Close &gt; max_price (szczyt masztu)</span><br><br>
+        Wejście gdy zamknięcie przebija szczyt masztu. Minimalnie 3 dni flagi przed wybiciu.
+      </td>
+      <td>
+        <span class="badge badge-green">Close &gt; c_price (wierzchołek C)</span><br><br>
+        Wejście gdy zamknięcie przebija wierzchołek C formacji muszli.
+      </td>
+    </tr>
+
+    <!-- STOP-LOSS POCZĄTKOWY -->
+    <tr>
+      <td class="row-header">🛑 Stop-Loss<br><small>(początkowy)</small></td>
+      <td>
+        <span class="badge badge-red">bump_low × 0.99</span><br><br>
+        <b>1% poniżej najniższego Low w bump phase</b> (dno patelni).<br><br>
+        Bulkowski: dno bumpa = absolutna granica. Powrót do dna = formacja nieważna.
+      </td>
+      <td>
+        <span class="badge badge-red">min(L1, L2) × 0.99</span><br><br>
+        <b>1% poniżej niższego z dwóch den.</b><br><br>
+        Bulkowski: <i>"place stop slightly below the lower of the two bottoms"</i>
+      </td>
+      <td>
+        <span class="badge badge-red">flag_low (Close poniżej min. flagi)</span><br><br>
+        <b>Close poniżej najniższego Low w fladze.</b><br><br>
+        Bulkowski: <i>"closing price below the low posted in the flag"</i>. Tylko Close, nie intraday Low!
+      </td>
+      <td>
+        <span class="badge badge-red">b_price × 0.99</span><br><br>
+        <b>1% poniżej punktu B</b> (dno korekty po szczycie C).<br><br>
+        Bulkowski: <i>"stop just below B"</i>
+      </td>
+    </tr>
+
+    <!-- PRZESUWANIE STOP-LOSSA -->
+    <tr>
+      <td class="row-header">📐 Przesuwanie Stop-Lossa</td>
+      <td>
+        <ul>
+          <li>Po wzroście &gt;20%: stop pod linię trendu lead-in</li>
+          <li>Kurs &gt; <code>pattern_high</code> (historyczny szczyt): stop pod ostatnie lokalne minimum</li>
+          <li>Po wzroście &gt;55% (avg TB): trailing 20% od szczytu</li>
+        </ul>
+      </td>
+      <td>
+        <ul>
+          <li>Po wzroście &gt;15%: stop pod neckline (<code>confirmation_price</code>)</li>
+          <li>Po wzroście &gt;30%: trailing 20% od bieżącego szczytu</li>
+          <li>Zasada: stop tylko w górę, nigdy w dół</li>
+        </ul>
+      </td>
+      <td>
+        <ul>
+          <li>Natychmiast po wejściu: stop = <code>flag_low</code></li>
+          <li>Po wzroście = 50% masztu: stop pod <code>flag_high</code></li>
+          <li>Po wzroście = 100% masztu: trailing 15–20% od szczytu</li>
+        </ul>
+      </td>
+      <td>
+        <ul>
+          <li>Po każdym nowym High: stop pod ostatnie lokalne minimum</li>
+          <li>Po wzroście &gt;20% od wejścia: trailing 20% od szczytu</li>
+          <li>Zasada: stop tylko w górę, nigdy w dół</li>
+        </ul>
+      </td>
+    </tr>
+
+    <!-- CEL CENOWY -->
+    <tr>
+      <td class="row-header">🎯 Cel Cenowy</td>
+      <td>
+        <span class="badge badge-blue">pattern_high</span><br><br>
+        Najwyższy High w całej formacji (od startu lead-in). Bulkowski: <b>76% skuteczność</b> osiągnięcia targetu.
+      </td>
+      <td>
+        <span class="badge badge-blue">neckline + pattern_height</span><br><br>
+        <code>pattern_height = neckline − min(L1,L2)</code><br>Cel = neckline + wysokość formacji powyżej neckline.
+      </td>
+      <td>
+        <span class="badge badge-blue">max_price + pole_height</span><br><br>
+        Projekcja masztu od punktu wybicia w górę. <code>pole_height = max_price − pole_min_low</code>
+      </td>
+      <td>
+        <span class="badge badge-blue">B + (C − A)</span><br><br>
+        Wysokość ruchu A→C (<code>ac_height = c_price − a_price</code>) projektowana od punktu B w górę.
+      </td>
+    </tr>
+
+    <!-- ZAMKNIĘCIE POZYCJI -->
+    <tr>
+      <td class="row-header">❌ Zamknięcie Pozycji</td>
+      <td>
+        <b>Zamknij gdy 2 z 3:</b>
+        <ul>
+          <li>Close &lt; trailing stop (ATR)</li>
+          <li>Close &lt; Close sprzed 3 sesji</li>
+          <li>Brak nowego High przez 3 sesje z rzędu</li>
+        </ul>
+        <span class="badge badge-red">Pilne:</span> Low &lt; bump_low × 0.99 → natychmiastowe zamknięcie
+      </td>
+      <td>
+        <ul>
+          <li>Low &lt; min(L1,L2) × 0.99 → SL (natychmiastowe)</li>
+          <li>Close &lt; L2 → unieważnienie formacji</li>
+          <li>20% drawdown od szczytu → realizacja zysku</li>
+        </ul>
+      </td>
+      <td>
+        <ul>
+          <li>Close &lt; flag_low → SL (natychmiastowe)</li>
+          <li>Flaga &gt;25 sesji bez wybicia → wyjdź przed sygnałem</li>
+          <li>20% drawdown od szczytu → realizacja zysku</li>
+        </ul>
+      </td>
+      <td>
+        <ul>
+          <li>Close &lt; b_price → SL (natychmiastowe)</li>
+          <li>20% drawdown od szczytu → realizacja zysku</li>
+          <li>Brak nowego High &gt;3 tyg + niższe Close → redukcja</li>
+        </ul>
+      </td>
+    </tr>
+
+    <!-- UNIEWAŻNIENIE FORMACJI -->
+    <tr>
+      <td class="row-header">⚠️ Unieważnienie Formacji</td>
+      <td><span class="red">Low &lt; bump_low × 0.95</span> — powrót do dna bumpa (kod: <code>if float(lows[bi]) &lt; bump_low_val * 0.95: break</code>)</td>
+      <td><span class="red">Close &lt; right_low (L2)</span> — kod: <code>if close_bi &lt; right_low: break</code></td>
+      <td><span class="red">Low &lt; half_pole</span> — flaga spada poniżej połowy masztu: <code>half_pole = pole_min_low + pole_height/2</code></td>
+      <td><span class="red">Close &lt; b_low</span> — kod: <code>if close_bi &lt; b_low: break</code></td>
+    </tr>
+
+    <!-- KURS STOI W MIEJSCU -->
+    <tr>
+      <td class="row-header">⏳ Kurs Stoi w Miejscu</td>
+      <td>
+        <ul>
+          <li><b>1–2 tyg:</b> normalne po wybiciu (throwback rate 61%!), trzymaj</li>
+          <li><b>Throwback do trendline:</b> nie panikuj, trzymaj stop pod bump_low</li>
+          <li><b>&gt;4 tyg bez nowego High:</b> sprawdź 2/3 warunki wyjścia</li>
+        </ul>
+        <span class="badge badge-yellow">Uwaga: throwback 61% — spodziewaj się cofnięcia do linii trendu!</span>
+      </td>
+      <td>
+        <ul>
+          <li><b>1–2 tyg:</b> normalne po wybiciu, trzymaj</li>
+          <li><b>Close wraca pod neckline:</b> sygnał ostrzegawczy, zmniejsz pozycję</li>
+          <li><b>&gt;3 tyg pod neckline:</b> zamknij połowę pozycji</li>
+        </ul>
+      </td>
+      <td>
+        <ul>
+          <li><b>Flaga &gt;25 sesji:</b> kod odrzuca takie flagi — sygnał był słaby</li>
+          <li><b>Po wybiciu 1–2 tyg bez ruchu:</b> normalne, trzymaj</li>
+          <li><b>&gt;3 tyg poniżej ceny wejścia:</b> redukcja 50%</li>
+        </ul>
+      </td>
+      <td>
+        <ul>
+          <li><b>≤17 dni B→wybicie:</b> silniejszy sygnał (avg +44%), trzymaj</li>
+          <li><b>&gt;17 dni B→wybicie:</b> słabszy (avg +34%), mniejsza pozycja</li>
+          <li><b>&gt;3 tyg bez nowego High:</b> zamknij 50%, resztę trzymaj do stopu</li>
+        </ul>
+      </td>
+    </tr>
+
+    <!-- TIMING -->
+    <tr>
+      <td class="row-header">⏱️ Timing Formacji</td>
+      <td>
+        <ul>
+          <li>Lead-in: 35–120 sesji (avg 35)</li>
+          <li>Bump: 10–90 sesji</li>
+          <li>Run (do wybicia): ≤90 sesji od dna bumpa</li>
+          <li>bump_height_ratio ≥ 2× lead-in height</li>
+        </ul>
+      </td>
+      <td>
+        <ul>
+          <li>Odstęp L1–L2: 10–100 sesji</li>
+          <li>Wzrost L→neckline: ≥17%</li>
+          <li>Różnica den: ≤6%</li>
+          <li>Po L2: potwierdzenie w ≤75% czasu L1–L2</li>
+        </ul>
+      </td>
+      <td>
+        <ul>
+          <li>Maszt: 4–40 sesji (wzrost ≥85%)</li>
+          <li>Flaga: 3–25 sesji</li>
+          <li>Wolumen: malejący w fladze (opcjonalnie)</li>
+          <li>Flaga nie przekracza szczytu masztu</li>
+        </ul>
+      </td>
+      <td>
+        <ul>
+          <li>Ruch A→C: 15–90 sesji (≥25% wzrostu)</li>
+          <li>Korekta C→B: zniesienie 40–90%</li>
+          <li>Wybicie ≤40 sesji od B</li>
+          <li>R² łuku ≥ 0.90 (bardzo gładki)</li>
+        </ul>
+      </td>
+    </tr>
+
+    <!-- JAKOŚĆ SYGNAŁU -->
+    <tr>
+      <td class="row-header">⭐ Jakość Sygnału</td>
+      <td>
+        <span class="badge badge-green">Rank #1 wg Bulkowskiego</span><br>
+        <ul>
+          <li>Wyższy bump_height_ratio = silniejszy sygnał</li>
+          <li>Dłuższy lead-in = bardziej wiarygodny</li>
+          <li>Break-even failure rate: 9% (najlepszy!)</li>
+        </ul>
+      </td>
+      <td>
+        <ul>
+          <li><span class="badge badge-green">Eve&amp;Eve</span> = najlepszy wariant</li>
+          <li>Wyższy peak_rise_pct (≥17%) = silniejsza formacja</li>
+          <li>Dłuższy separation (≥30 sesji) = bardziej wiarygodne dno</li>
+        </ul>
+      </td>
+      <td>
+        <ul>
+          <li>Maszt ≥85% wzrostu = silna flaga</li>
+          <li>Gęsta flaga (nakładające się słupki) = lepsze wybicie</li>
+          <li>Malejący wolumen w fladze = potwierdzenie</li>
+        </ul>
+      </td>
+      <td>
+        <ul>
+          <li>Wybicie ≤17 sesji od B: avg +44%</li>
+          <li>Wybicie &gt;17 sesji od B: avg +34%</li>
+          <li>Niższe zniesienie C→B (40–53%) = silniejszy sygnał</li>
+        </ul>
+      </td>
+    </tr>
+
+    <!-- PARAMETRY BACKTESTU -->
+    <tr>
+      <td class="row-header">⚙️ Konfiguracja<br><small>(backtest)</small></td>
+      <td>
+        <div class="section-title">Parametry bazowe</div>
+        <code style="font-size:11px">lead_in: 35–120d<br>lead_in_angle: ≤45°<br>bump: 10–90d<br>bump_angle: ≥60°<br>bump_ratio: ≥2.0×<br>breakout: ≤90d<br>local_order: 25</code>
+      </td>
+      <td>
+        <div class="section-title">Parametry bazowe</div>
+        <code style="font-size:11px">sep: 10–100d<br>bottom_diff: ≤6%<br>peak_rise: ≥17%<br>downtrend: ≥15%<br>drop_into_l1: ≥8%<br>throwback: ≤8%<br>volume: off</code>
+      </td>
+      <td>
+        <div class="section-title">Parametry bazowe (złota konfiguracja)</div>
+        <code style="font-size:11px">pole: 4–40d, ≥85%<br>flag: 3–25d<br>no_high: 3d<br>vol_decline: off<br>dense: off</code>
+      </td>
+      <td>
+        <div class="section-title">Parametry bazowe</div>
+        <code style="font-size:11px">ac: 15–90d, ≥25%<br>retracement: 40–90%<br>breakout: ≤40d<br>arc_R²: ≥0.90<br>throwback: ≤12%<br>uptrend: ≥15%</code>
+      </td>
+    </tr>
+
+  </tbody>
+</table>
+
+<br>
+<p style="text-align:center; color:#8b949e; font-size:11px;">
+  Metodologia: Bulkowski "ultimate high" — trzymaj do 20% spadku od szczytu LUB do stop-lossa. Dane: NYSE 2024–2026.<br>
+  Stop-loss zawsze ma priorytet nad 20% drawdown trigger. Nigdy nie obniżaj stop-lossa — tylko podnosisz.
+</p>
+
+</body>
+</html>
